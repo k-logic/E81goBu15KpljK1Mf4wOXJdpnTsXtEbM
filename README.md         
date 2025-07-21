@@ -1,7 +1,0 @@
-エンコーダー
-g++ -std=c++23 encoder.cpp -Iinclude -L./lib -ltensorflowlite `pkg-config --cflags --libs opencv4` -Wl,-rpath=./lib -o encoder_app
-
-デコーダー
-g++ -std=c++23 src/decoder.cpp -Iinclude -L./lib -ltensorflowlite `pkg-config --cflags --libs opencv4` -Wl,-rpath=./lib -o decoder_app
-
-
