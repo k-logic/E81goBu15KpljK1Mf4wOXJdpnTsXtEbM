@@ -1,9 +1,13 @@
-エンコーダー
+##　compile
+### encoder
+```
 g++ -std=c++23 src/encoder.cpp -Iinclude -L./lib -ltensorflowlite `pkg-config --cflags --libs opencv4` -Wl,-rpath=./lib -o encoder_app
+```
 
-デコーダー
+```
+### decoder
 g++ -std=c++23 src/decoder.cpp -Iinclude -L./lib -ltensorflowlite `pkg-config --cflags --libs opencv4` -Wl,-rpath=./lib -o decoder_app
-
+```
 
 ```
 sudo apt update
@@ -15,6 +19,7 @@ sudo apt install -y build-essential cmake git pkg-config \
 ```
 
 ## opencv
+```
 git clone https://github.com/opencv/opencv.git
 cd opencv
 mkdir build && cd build
@@ -40,9 +45,11 @@ echo 'export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH' >> ~/.bashrc
 source ~/.bashrc
 
 sudo ldconfig
-
 ```
-sudo apt update
+
+
+## liteRT build
+```
 sudo apt install curl unzip -y
 
 # ARMの場合
