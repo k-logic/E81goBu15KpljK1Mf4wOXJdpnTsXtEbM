@@ -1,4 +1,6 @@
 #pragma once
+#define FMT_HEADER_ONLY
+#include <fmt/core.h>
 #include <vector>
 #include <string>
 #include <stdexcept>
@@ -60,44 +62,25 @@ inline std::vector<float> u32_to_float32(const std::vector<std::uint32_t>& input
   return out;
 }
 
+// float32 → uint8_t ビット変換
 inline std::vector<uint8_t> float32_to_fp8_bytes(const std::vector<float>& input) {
   std::vector<uint8_t> out;
   out.reserve(input.size());
   for (float val : input) {
       float8_t f8 = float_to_float8(val);
-      uint8_t bits;
-      std::memcpy(&bits, &f8, sizeof(uint8_t));
-      out.push_back(bits);
+      out.push_back(float8_to_uchar(f8));
   }
   return out;
 }
 
+// uint8_t → float32 復元
 inline std::vector<float> fp8_bytes_to_float32(const std::vector<uint8_t>& input) {
   std::vector<float> out;
   out.reserve(input.size());
   for (uint8_t bits : input) {
-      float8_t f8;
-      std::memcpy(&f8, &bits, sizeof(uint8_t));
-      float f32 = float8_to_float(f8);
-      out.push_back(f32);
+      float8_t f8 = uchar_to_float8(bits);
+      out.push_back(float8_to_float(f8));
   }
   return out;
-}
-
-
-// 任意の浮動小数点型に対応した画像読み込み（RGB → [0.0, 1.0] 正規化）
-template <typename T = float>
-inline std::vector<T> load_rgbf(const std::string& path, int w, int h) {
-    int c;
-    uint8_t* img = stbi_load(path.c_str(), &w, &h, &c, 3);  // RGBとして読み込み
-    if (!img) throw std::runtime_error("Failed to load image");
-
-    std::vector<T> float_image(w * h * 3);
-    for (int i = 0; i < w * h * 3; ++i) {
-        float_image[i] = static_cast<T>(img[i]) / static_cast<T>(255.0f);
-    }
-
-    stbi_image_free(img);
-    return float_image;
 }
 }

@@ -3,78 +3,15 @@
 #include <string>
 #include <stdexcept>
 #include <cstdint>
-#include <stdfloat>
 #include <random>
-#define STB_IMAGE_IMPLEMENTATION
-#include <stb/stb_image.h>
 
 namespace chunker {
-
-// 任意の型に対応したチャンク分割関数
-template <typename T = float>
-inline std::vector<std::vector<T>> split_chunks(
-    const std::vector<T>& float_image,
-    int width, int height,
-    int CHUNK_W, int CHUNK_H
-) {
-    std::vector<std::vector<T>> chunks;
-
-    for (int by = 0; by + CHUNK_H <= height; by += CHUNK_H) {
-        for (int bx = 0; bx + CHUNK_W <= width; bx += CHUNK_W) {
-            std::vector<T> chunk;
-            for (int cy = 0; cy < CHUNK_H; ++cy) {
-                for (int cx = 0; cx < CHUNK_W; ++cx) {
-                    int pixel_index = ((by + cy) * width + (bx + cx)) * 3;
-                    chunk.push_back(float_image[pixel_index + 0]); // R
-                    chunk.push_back(float_image[pixel_index + 1]); // G
-                    chunk.push_back(float_image[pixel_index + 2]); // B
-                }
-            }
-            chunks.push_back(std::move(chunk));
-        }
-    }
-
-    return chunks;
-}
-
-// CHW形式のfloat_imageに対応したチャンク分割
-template <typename T = float>
-inline std::vector<std::vector<T>> split_chunks_chw(
-    const std::vector<T>& float_image,
-    int width, int height,
-    int CHUNK_W, int CHUNK_H,
-    int channels = 16
-) {
-    std::vector<std::vector<T>> chunks;
-    const int hw = height * width;
-
-    for (int by = 0; by + CHUNK_H <= height; by += CHUNK_H) {
-        for (int bx = 0; bx + CHUNK_W <= width; bx += CHUNK_W) {
-            std::vector<T> chunk;
-            for (int cy = 0; cy < CHUNK_H; ++cy) {
-                for (int cx = 0; cx < CHUNK_W; ++cx) {
-                    int y = by + cy;
-                    int x = bx + cx;
-                    for (int c = 0; c < channels; ++c) {
-                        int idx = c * hw + y * width + x;
-                        chunk.push_back(float_image[idx]);
-                    }
-                }
-            }
-            chunks.push_back(std::move(chunk));
-        }
-    }
-
-    return chunks;
-}
-
-
 // CHW形式のエンコード出力を「ピクセルN個単位」でチャンク化
 template <typename T = float>
 std::vector<std::vector<T>> chunk_by_pixels(
     const std::vector<T>& chw_data,
     int c, int h, int w,
-    int pixels_per_chunk = 16  // デフォルトは16ピクセルごとに1チャンク
+    int pixels_per_chunk
 ) {
     std::vector<std::vector<T>> chunks;
     int hw = h * w;
@@ -134,7 +71,7 @@ inline std::vector<std::vector<T>> randomly_drop_chunks_with_black_fill(
     const std::vector<std::vector<T>>& chunks,
     float drop_rate = 0.1f
 ) {
-    std::vector<std::vector<T>> result(chunks.size());  // 元のサイズと同じ
+    std::vector<std::vector<T>> result(chunks.size());
 
     std::random_device rd;
     std::mt19937 gen(rd());
@@ -144,7 +81,7 @@ inline std::vector<std::vector<T>> randomly_drop_chunks_with_black_fill(
 
     for (size_t i = 0; i < chunks.size(); ++i) {
         if (dis(gen) > drop_rate) {
-            result[i] = chunks[i];  // 元のチャンクをそのまま
+            result[i] = chunks[i];
             ++kept;
         } else {
             result[i] = std::vector<T>(chunks[i].size(), static_cast<T>(0));  // 黒で埋める
@@ -157,70 +94,4 @@ inline std::vector<std::vector<T>> randomly_drop_chunks_with_black_fill(
 
     return result;
 }
-
-
-
-template<typename T = float>
-inline std::vector<T> merge_chunks(
-    const std::unordered_map<int, std::vector<T>>& chunks,
-    int width, int height,
-    int CHUNK_W, int CHUNK_H
-) {
-    constexpr int CHANNELS = 3;
-    std::vector<T> restored_image(width * height * CHANNELS, static_cast<T>(0));
-    const std::vector<T> black_chunk(CHUNK_W * CHUNK_H * CHANNELS, static_cast<T>(0));
-
-    int chunk_cols = width / CHUNK_W;
-    int chunk_rows = height / CHUNK_H;
-
-    for (int i = 0; i < chunk_cols * chunk_rows; ++i) {
-        auto it = chunks.find(i);
-        const std::vector<T>& source =
-            (it != chunks.end() && !it->second.empty())
-            ? it->second : black_chunk;
-
-        int chunk_x = (i % chunk_cols) * CHUNK_W;
-        int chunk_y = (i / chunk_cols) * CHUNK_H;
-
-        for (int cy = 0; cy < CHUNK_H; ++cy)
-            for (int cx = 0; cx < CHUNK_W; ++cx)
-                for (int ch = 0; ch < CHANNELS; ++ch) {
-                    int dst_idx = ((chunk_y + cy) * width + (chunk_x + cx)) * CHANNELS + ch;
-                    int src_idx = (cy * CHUNK_W + cx) * CHANNELS + ch;
-                    restored_image[dst_idx] = source[src_idx];
-                }
-    }
-
-    return restored_image;
-}
-
-
-template <typename T = float>
-inline std::vector<std::vector<T>> split_chunks_general(
-    const std::vector<T>& data,
-    int channels, int width, int height,
-    int CHUNK_W, int CHUNK_H
-) {
-    std::vector<std::vector<T>> chunks;
-
-    for (int by = 0; by + CHUNK_H <= height; by += CHUNK_H) {
-        for (int bx = 0; bx + CHUNK_W <= width; bx += CHUNK_W) {
-            std::vector<T> chunk;
-            for (int cy = 0; cy < CHUNK_H; ++cy) {
-                for (int cx = 0; cx < CHUNK_W; ++cx) {
-                    int base = ((by + cy) * width + (bx + cx)) * channels;
-                    for (int ch = 0; ch < channels; ++ch) {
-                        chunk.push_back(data[base + ch]);
-                    }
-                }
-            }
-            chunks.push_back(std::move(chunk));
-        }
-    }
-
-    return chunks;
-}
-
-
-
 }

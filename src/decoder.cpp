@@ -1,47 +1,37 @@
-#include <tflite_model.hpp>
-
+#define FMT_HEADER_ONLY
 #define ASIO_STANDALONE
+// 標準ライブラリ
+#include <iostream>
+#include <thread>
+#include <mutex>
+#include <condition_variable>
+#include <map>
+#include <queue>
+// 外部ライブラリ
+#include <fmt/core.h>
 #include <asio/asio.hpp>
-
+#include <opencv2/opencv.hpp>
+// 自作ライブラリ
+#include <config.hpp>
+#include <tflite_model.hpp>
 #include <packet.hpp>
 #include <chunker.hpp>
 #include <other_utils.hpp>
 #include <debug_utils.hpp>
 #include <udp_server.hpp>
+#include <image_utils.hpp>
 
-#include <map>
-#include <queue>
-#include <thread>
-#include <mutex>
-#include <condition_variable>
-
-#define RESOURCE_DIR "resource/"
-#define MODEL_DIR "models/"
-
-const std::string ENCODER_PATH = MODEL_DIR "encoder.tflite";
-const std::string DECODER_PATH = MODEL_DIR "decoder.tflite";
-const int IMAGE_C = 3;
-const int IMAGE_W = 1280;
-const int IMAGE_H = 720;
-const int CHUNK_C = 16;
-const int CHUNK_W = 80;
-const int CHUNK_H = 45;
-const int CHUNK_PIXEL = 88;
-const int BUFF_FRAME = 1;
-const bool REALTIME_MODE = true;
-
-using FrameID = uint16_t;
-using CHWData = std::vector<float>;
+using namespace config;
 
 // チャンクの一時保存
-std::map<FrameID, std::unordered_map<uint16_t, std::vector<float>>> frame_buffer;
+std::map<uint32_t, std::unordered_map<uint16_t, std::vector<float>>> frame_buffer;
 
 // デコード待ちのフレーム（ジョブキュー）
-std::queue<std::pair<FrameID, CHWData>> job_queue;
-std::optional<std::pair<FrameID, CHWData>> latest_job;
+std::queue<std::pair<uint32_t, std::vector<float>>> job_queue;
+std::optional<std::pair<uint32_t, std::vector<float>>> latest_job;
 std::mutex job_mutex;
 std::condition_variable job_cv;
-bool shutdown_flag = false;
+std::atomic<bool> shutdown_flag = false;
 
 // CHW形式→OpenCV形式 (BGR)
 void display_decoded_image(const float* chw, int c, int h, int w) {
@@ -68,9 +58,9 @@ void decoder_thread(lite::Decoder& decoder) {
                 (REALTIME_MODE && latest_job.has_value());
         });
 
-        if (shutdown_flag) break;
+        if (shutdown_flag.load()) break;
 
-        std::pair<FrameID, CHWData> job;
+        std::pair<uint32_t, std::vector<float>> job;
         if (REALTIME_MODE) {
             job = std::move(latest_job.value());
             latest_job.reset();
@@ -82,55 +72,57 @@ void decoder_thread(lite::Decoder& decoder) {
         lock.unlock();
 
         try {
-            std::vector<float> decoded = decoder.run(job.second);
-            std::string filename = std::format("frame_{:05d}.png", job.first);
-            lite::save_image(decoded.data(), IMAGE_C, IMAGE_H, IMAGE_W, filename);
-            display_decoded_image(decoded.data(), IMAGE_C, IMAGE_H, IMAGE_W);
-            std::cout << std::format("decoded & saved: {}\n", job.first);
+            std::span<float> decoded_span = decoder.run(job.second);
+            std::vector<float> decoded(decoded_span.begin(), decoded_span.end());
+            //std::string filename = std::format("frame_{:05d}.png", job.first);
+            std::string filename = "frame_out.png";
+            image_utils::save_image(decoded.data(), IMAGE_C, IMAGE_H, IMAGE_W, filename);
+            //display_decoded_image(decoded.data(), IMAGE_C, IMAGE_H, IMAGE_W);
+            std::cout << fmt::format("decoded & saved: {}\n", job.first);
         } catch (const std::exception& e) {
-            std::cerr << "[DECODE ERROR] " << e.what() << std::endl;
+            std::cerr << fmt::format("[DECODE ERROR] {}\n", e.what());
         }
     }
 }
 
 void on_receive(const udp::endpoint& sender, const std::vector<uint8_t>& packet) {
     try {
-        packet::packet_u8 parsed = packet::parse_packet_u8(packet);
-        std::cout << std::format("packet frame_id: {} chunk_id: {}\n", parsed.frame_id, parsed.chunk_id);
+        packet::packet_u32 parsed = packet::parse_packet_u32(packet);
+        std::cout << fmt::format("packet frame_id: {} chunk_id: {} size: {}\n", parsed.header.frame_id, parsed.header.chunk_id, packet.size());
 
         // 古いフレームの削除
-        while (!frame_buffer.empty() && parsed.frame_id - frame_buffer.begin()->first > BUFF_FRAME) {
+        while (!frame_buffer.empty() && parsed.header.frame_id - frame_buffer.begin()->first > BUFF_FRAME) {
             frame_buffer.erase(frame_buffer.begin());
         }
 
         // チャンク格納
-        frame_buffer[parsed.frame_id][parsed.chunk_id] = other_utils::fp8_bytes_to_float32(parsed.compressed);
+        frame_buffer[parsed.header.frame_id][parsed.header.chunk_id] = other_utils::u32_to_float32(parsed.compressed);
 
-        auto it = frame_buffer.find(parsed.frame_id);
-        if (it != frame_buffer.end() && it->second.size() >= parsed.chunk_total) {
+        auto it = frame_buffer.find(parsed.header.frame_id);
+        if (it != frame_buffer.end() && it->second.size() >= parsed.header.chunk_total) {
             // ソート＆再構成
-            std::vector<std::vector<float>> sorted_chunks(parsed.chunk_total);
+            std::vector<std::vector<float>> sorted_chunks(parsed.header.chunk_total);
             for (auto& [cid, data] : it->second) {
                 sorted_chunks[cid] = std::move(data);
             }
         
-            CHWData chw_data = chunker::reconstruct_from_chunks<float>(
+            std::vector<float> chw_data = chunker::reconstruct_from_chunks<float>(
                 sorted_chunks, CHUNK_C, CHUNK_H, CHUNK_W, CHUNK_PIXEL);
         
             // ジョブキュー管理
             {
                 std::lock_guard lock(job_mutex);
                 if (REALTIME_MODE) {
-                    latest_job = std::make_pair(parsed.frame_id, std::move(chw_data));
+                    latest_job = std::make_pair(parsed.header.frame_id, std::move(chw_data));
                 } else {
-                    job_queue.emplace(parsed.frame_id, std::move(chw_data));
+                    job_queue.emplace(parsed.header.frame_id, std::move(chw_data));
                 }
             }
             job_cv.notify_one();
             frame_buffer.erase(it);
         }
     } catch (const std::exception& e) {
-        std::cerr << "[RECEIVE ERROR] " << e.what() << std::endl;
+        std::cerr << fmt::format("[RECEIVE ERROR] {}\n", e.what());
     }
 }
 

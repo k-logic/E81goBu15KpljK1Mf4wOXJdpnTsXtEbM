@@ -11,12 +11,16 @@ struct float8_t {
     uint8_t sign : 1;
 };
 
-unsigned char float8_to_uchar(float8_t f8) {
-    return *(unsigned char *)&f8;
+inline unsigned char float8_to_uchar(float8_t f8) {
+    return (f8.sign << 7) | (f8.exponent << 3) | f8.fraction;
 }
 
 inline float8_t uchar_to_float8(unsigned char c) {
-    return *(float8_t *)&c;
+    float8_t f8;
+    f8.sign     = (c >> 7) & 0x1;
+    f8.exponent = (c >> 3) & 0xF;
+    f8.fraction = c & 0x7;
+    return f8;
 }
 
 inline float8_t increse_by_one(float8_t f8) {

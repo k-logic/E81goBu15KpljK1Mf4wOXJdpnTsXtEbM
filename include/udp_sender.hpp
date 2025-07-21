@@ -1,5 +1,6 @@
 #pragma once
-
+#define FMT_HEADER_ONLY
+#include <fmt/core.h>
 #define ASIO_STANDALONE
 #include <asio/asio.hpp>
 #include <asio/awaitable.hpp>
@@ -65,7 +66,7 @@ private:
         if (setsockopt(fd, SOL_SOCKET, SO_SNDBUF, &sndbuf, sizeof(sndbuf)) < 0) {
             perror("setsockopt(SO_SNDBUF) failed");
         } else {
-            std::cout << "[INFO] SO_SNDBUF set to " << sndbuf << " bytes\n";
+            std::cerr << fmt::format("[INFO] SO_SNDBUF set to {} bytes\n", sndbuf);
         }
     }
 };

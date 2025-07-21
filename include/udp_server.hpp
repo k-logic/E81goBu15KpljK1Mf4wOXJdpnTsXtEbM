@@ -1,5 +1,6 @@
 #pragma once
-
+#define FMT_HEADER_ONLY
+#include <fmt/core.h>
 #define ASIO_STANDALONE
 #include <asio/asio.hpp>
 #include <array>
@@ -29,10 +30,10 @@ public:
 
     awaitable<void> start(ReceiveHandler handler) {
         try {
-            std::cout << std::format("UDP server started on port {}\n", socket_.local_endpoint().port());
+            std::cout << fmt::format("UDP server started on port {}\n", socket_.local_endpoint().port());
             co_await receive_loop(std::move(handler));
         } catch (const std::exception& e) {
-            std::cerr << "UDP server error: " << e.what() << "\n";
+            std::cerr << fmt::format("UDP server error: {}\n", e.what());
         }
         co_return;
     }
@@ -49,7 +50,7 @@ private:
         if (setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &rcvbuf_size, sizeof(rcvbuf_size)) < 0) {
             perror("setsockopt(SO_RCVBUF) failed");
         } else {
-            std::cout << std::format("SO_RCVBUF set to {} bytes\n", rcvbuf_size);
+            std::cout << fmt::format("SO_RCVBUF set to {} bytes\n", rcvbuf_size);
         }
     }
 
@@ -60,7 +61,7 @@ private:
     }
 
     awaitable<void> receive_once(ReceiveHandler& handler) {
-        static thread_local std::array<char, 1500> buffer;
+        static thread_local std::array<char, 2048> buffer;
         udp::endpoint sender;
 
         std::size_t bytes = co_await socket_.async_receive_from(
