@@ -49,7 +49,7 @@ sudo ldconfig
 ```
 
 
-## liteRT build
+## Install bazel
 ```
 sudo apt install curl unzip -y
 
@@ -64,7 +64,10 @@ chmod +x bazel
 sudo mv bazel /usr/local/bin/bazel
 
 bazel version
+```
 
+## liteRT build
+```
 git clone https://github.com/tensorflow/tensorflow.git tensorflow_src
 
 cd ./tensorflow_src
