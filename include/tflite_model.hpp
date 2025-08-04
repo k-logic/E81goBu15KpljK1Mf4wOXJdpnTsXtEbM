@@ -84,17 +84,17 @@ public:
     void load(const std::string& path) override {
         TFLiteModel::load(path);
 
-        input_tensor = interpreter->typed_input_tensor<float>(1);
-        output_tensor = interpreter->typed_output_tensor<float>(2);
+        input_tensor = interpreter->typed_input_tensor<float>(0);
+        output_tensor = interpreter->typed_output_tensor<float>(0);
 
-        auto* dims = interpreter->tensor(interpreter->outputs()[2])->dims;
+        auto* dims = interpreter->tensor(interpreter->outputs()[0])->dims;
         output_size = 1;
         for (int i = 0; i < dims->size; ++i)
             output_size *= dims->data[i];
     }
 
-    std::span<float> run(std::span<const float> encoded_input) {
-        std::memcpy(input_tensor, encoded_input.data(), sizeof(float) * encoded_input.size());
+    std::span<float> run(std::span<const float> input) {
+        std::memcpy(input_tensor, input.data(), sizeof(float) * input.size());
 
         if (interpreter->Invoke() != kTfLiteOk) {
             std::cerr << "Failed to invoke decoder.\n";

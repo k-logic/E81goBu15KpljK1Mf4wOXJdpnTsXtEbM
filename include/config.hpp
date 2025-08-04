@@ -12,6 +12,7 @@ namespace config {
     constexpr const char* CAMERA_HOST = "10.211.55.11";
     //constexpr const char* CAMERA_HOST = "192.168.0.117";
     //constexpr const char* CAMERA_HOST = "192.168.0.177";
+    //constexpr const char* CAMERA_HOST = "192.168.0.170";
     constexpr uint16_t CAMERA_PORT     = 8004;
     constexpr size_t MAX_SAFE_UDP_SIZE = 1500;
     constexpr int IMAGE_C = 3;

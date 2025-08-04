@@ -10,6 +10,7 @@ g++ -std=c++23 src/encoder.cpp -Iinclude -L./lib -ltensorflowlite `pkg-config --
 g++ -std=c++23 src/decoder.cpp -Iinclude -L./lib -ltensorflowlite `pkg-config --cflags --libs opencv4` -Wl,-rpath=./lib -o decoder_app
 ```
 
+## install modules
 ```
 sudo apt update
 sudo apt install -y build-essential cmake git pkg-config \
@@ -19,7 +20,7 @@ sudo apt install -y build-essential cmake git pkg-config \
   libgtk-3-dev libatlas-base-dev gfortran python3-dev
 ```
 
-## opencv
+## Install opencv
 ```
 git clone https://github.com/opencv/opencv.git
 cd opencv
@@ -28,26 +29,24 @@ mkdir build && cd build
 cmake .. \
   -DCMAKE_BUILD_TYPE=Release \
   -DCMAKE_CXX_STANDARD=23 \
-  -DCMAKE_INSTALL_PREFIX=/usr/local \
+  -DCMAKE_INSTALL_PREFIX=./install \
   -DOPENCV_GENERATE_PKGCONFIG=ON \
   -DWITH_GTK=ON \
   -DWITH_GTK_3=ON
 make -j$(nproc)
-sudo make install
+make install
 
-ls /usr/local/lib/pkgconfig
-ls /usr/local/include/opencv4
+ls ./install/lib
+ls ./install/include/opencv4/opencv2
 
-export PKG_CONFIG_PATH=/usr/local/lib/pkgconfig:$PKG_CONFIG_PATH
-export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
-恒久
-echo 'export PKG_CONFIG_PATH=/usr/local/lib/pkgconfig:$PKG_CONFIG_PATH' >> ~/.bashrc
-echo 'export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH' >> ~/.bashrc
-source ~/.bashrc
+mkdir $my_project/include/opencv2
+mkdir $my_project/lib/opencv2/
 
-sudo ldconfig
+cp -r ./install/include/opencv4/opencv2/* $my_project/include/opencv2/
+cp -r ./install/lib/*                     $my_project/lib/opencv2/
+
+export PKG_CONFIG_PATH=$my_project/lib/opencv2/pkgconfig:$PKG_CONFIG_PATH
 ```
-
 
 ## Install bazel
 ```
@@ -78,25 +77,21 @@ bazel clean --expunge
 
 bazel build -c opt //tensorflow/lite:libtensorflowlite.so
 
-# ARM用を作る場合は、以下のオプションをつける。
+# 統合型の ARM GCC 8.3 ツールチェーン ARM32/64 共有ライブラリをビルドする場合
 bazel build --config=elinux_aarch64 -c opt //tensorflow/lite:libtensorflowlite.so
 
 # 作成場所
 ls ./bazel-bin/tensorflow/lite/libtensorflowlite.so
 
-mkdir lib
-mkdir tensorflow
-mkdir flatbuffers
+mkdir -p $my_project/lib
+mkdir -p $my_project/tensorflow
+mkdir -p $my_project/flatbuffers
 
-cp ./bazel-bin/tensorflow/lite/libtensorflowlite.so lib/
+cp ./bazel-bin/tensorflow/lite/libtensorflowlite.so $my_project/lib/
 
 # ビルドする場合は、以下のパスの中身をincludeする
-cp -r ./tensorflow/* include/tensorflow/
-
-# tensorflowの必要なものだけ入れる場合
-cp -r ./tensorflow/lite/* include/tensorflow/lite/
-cp -r ./tensorflow/core/* include/tensorflow/core/
+cp -r ./tensorflow/* $my_project/include/tensorflow/
 
 # flatbuffers/flatbuffers.hもincludeする
-cp -r ./bazel-bin/external/flatbuffers/_virtual_includes/flatbuffers/flatbuffers/* include/flatbuffers/
+cp -r ./bazel-bin/external/flatbuffers/_virtual_includes/flatbuffers/flatbuffers/* $my_project/include/flatbuffers/
 ```

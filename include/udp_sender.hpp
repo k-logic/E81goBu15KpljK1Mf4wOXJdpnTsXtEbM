@@ -1,6 +1,5 @@
 #pragma once
-#define FMT_HEADER_ONLY
-#include <fmt/core.h>
+
 #define ASIO_STANDALONE
 #include <asio/asio.hpp>
 #include <asio/awaitable.hpp>
