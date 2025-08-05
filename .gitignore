@@ -41,5 +41,5 @@
 *.dwo
 
 models/*
-include/tensorflow
-include/flatbuffers
+include/tensorflow/*
+include/flatbuffers/*
