@@ -4,13 +4,15 @@
 #include <opencv2/opencv.hpp>
 // 自作ライブラリ
 #include <config.hpp>
-#include <tflite_model.hpp>
 #include <packet.hpp>
 #include <chunker.hpp>
 #include <other_utils.hpp>
 #include <debug_utils.hpp>
 #include <udp_sender.hpp>
 #include <camera_input.hpp>
+
+#include "IModelExecutor.hpp"
+#include "TFLiteExecutor.hpp"
 
 using namespace config;
 
@@ -43,11 +45,15 @@ int main() {
         asio::io_context io;
         UdpSender sender;
         sender.init_sync(io, CAMERA_HOST, CAMERA_PORT);
-
-        lite::Encoder encoder;
-        encoder.load(ENCODER_PATH);
-
+                
         CameraInput camera(0, IMAGE_W, IMAGE_H, FRAME_FPS);
+
+        std::unique_ptr<IModelExecutor> encoder;
+
+        encoder = std::make_unique<TFLiteExecutor>();
+        encoder->load(ENCODER_PATH);
+
+        std::vector<float> encoded;
 
         int frame_id = 0;
         while (true) {
@@ -55,8 +61,13 @@ int main() {
             int key = cv::waitKey(10);
             if (key == 'q') break;
             std::vector<float> input = camera.get_frame_chw();
-            std::span<float> encoded_span = encoder.run(input);
-            std::vector<float> encoded(encoded_span.begin(), encoded_span.end());
+            if (input.empty()) {
+                std::cerr << "[ERROR] Failed to capture frame.\n";
+                continue;
+            }
+
+            encoder->run(input, encoded);
+
             std::cout << fmt::format("Encoded size: {} byte\n", encoded.size() * 4);
             std::cout << fmt::format("Output size: {} byte\n", encoded.size());    
             std::vector<std::vector<float>> chunks = chunker::chunk_by_pixels<float>(encoded, CHUNK_C, CHUNK_H, CHUNK_W, CHUNK_PIXEL);

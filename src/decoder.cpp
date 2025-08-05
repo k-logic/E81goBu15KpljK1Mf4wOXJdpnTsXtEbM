@@ -13,13 +13,15 @@
 #include <opencv2/opencv.hpp>
 // 自作ライブラリ
 #include <config.hpp>
-#include <tflite_model.hpp>
 #include <packet.hpp>
 #include <chunker.hpp>
 #include <other_utils.hpp>
 #include <debug_utils.hpp>
 #include <udp_server.hpp>
 #include <image_utils.hpp>
+
+#include "IModelExecutor.hpp"
+#include "TFLiteExecutor.hpp"
 
 using namespace config;
 
@@ -49,7 +51,7 @@ void display_decoded_image(const float* chw, int c, int h, int w) {
     cv::waitKey(1);
 }
 
-void decoder_thread(lite::Decoder& decoder) {
+void decoder_thread(std::unique_ptr<IModelExecutor>& decoder) {
     while (true) {
         std::unique_lock lock(job_mutex);
         job_cv.wait(lock, [] {
@@ -72,8 +74,8 @@ void decoder_thread(lite::Decoder& decoder) {
         lock.unlock();
 
         try {
-            std::span<float> decoded_span = decoder.run(job.second);
-            std::vector<float> decoded(decoded_span.begin(), decoded_span.end());
+            std::vector<float> decoded;
+            decoder->run(job.second, decoded);
             //std::string filename = std::format("frame_{:05d}.png", job.first);
             std::string filename = "frame_out.png";
             image_utils::save_image(decoded.data(), IMAGE_C, IMAGE_H, IMAGE_W, filename);
@@ -137,8 +139,9 @@ int main() {
     asio::io_context io;
     UdpServer server(io, 8004);
 
-    lite::Decoder decoder;
-    decoder.load(DECODER_PATH);
+    // モデル読み込み（TFLiteExecutorとして実装）
+    std::unique_ptr<IModelExecutor> decoder = std::make_unique<TFLiteExecutor>();
+    decoder->load(DECODER_PATH);
 
     // デコーダースレッド起動
     std::thread decode_thread(decoder_thread, std::ref(decoder));
