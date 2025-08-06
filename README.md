@@ -30,6 +30,9 @@ sudo apt install -y build-essential cmake git pkg-config \
   libgtk-3-dev libatlas-base-dev gfortran python3-dev
 ```
 
+
+export my_project=$(pwd)
+
 ## Install opencv
 ```
 git clone https://github.com/opencv/opencv.git
@@ -53,7 +56,7 @@ mkdir $my_project/include/opencv2
 mkdir $my_project/lib/opencv2/
 
 cp -r ./install/include/opencv4/opencv2/* $my_project/include/opencv2/
-cp -r ./install/lib/*                     $my_project/lib/opencv2/
+cp -r ./install/lib/* $my_project/lib/opencv2/
 
 export PKG_CONFIG_PATH=$my_project/lib/opencv2/pkgconfig:$PKG_CONFIG_PATH
 ```
@@ -94,8 +97,8 @@ bazel build --config=elinux_aarch64 -c opt //tensorflow/lite:libtensorflowlite.s
 ls ./bazel-bin/tensorflow/lite/libtensorflowlite.so
 
 mkdir -p $my_project/lib
-mkdir -p $my_project/tensorflow
-mkdir -p $my_project/flatbuffers
+mkdir -p $my_project/include/tensorflow
+mkdir -p $my_project/include/flatbuffers
 
 cp ./bazel-bin/tensorflow/lite/libtensorflowlite.so $my_project/lib/
 
