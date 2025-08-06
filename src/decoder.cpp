@@ -11,6 +11,7 @@
 #include <condition_variable>
 #include <map>
 #include <queue>
+#include <optional>
 // 外部ライブラリ
 #include <fmt/core.h>
 #include <asio/asio.hpp>
@@ -152,9 +153,10 @@ int main() {
     asio::io_context io;
     UdpServer server(io, 8004);
 
+    std::unique_ptr<IModelExecutor> decoder_model;
+
     // LiteRT用
     #if defined(USE_TFLITE)
-        std::unique_ptr<IModelExecutor> decoder_model;
         decoder_model = std::make_unique<TFLiteExecutor>();
         decoder_model->load(DECODER_PATH);
     #endif
