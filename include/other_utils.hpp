@@ -6,7 +6,7 @@
 #include <stdexcept>
 #include <cstdint>
 #include <cstring>
-#include <stdfloat>
+// #include <stdfloat>
 #include <float_8.hpp>
 
 
@@ -14,6 +14,7 @@
 
 namespace other_utils {
 
+/*
 // float16 → uint16_t ビット変換
 inline std::vector<uint16_t> float16_to_u16(const std::vector<std::float16_t>& input) {
   std::vector<uint16_t> out;
@@ -37,6 +38,7 @@ inline std::vector<std::float16_t> u16_to_float16(const std::vector<uint16_t>& i
   }
   return out;
 }
+*/
 
 // float32 → uint32_t ビット変換
 inline std::vector<std::uint32_t> float32_to_u32(const std::vector<float>& input) {

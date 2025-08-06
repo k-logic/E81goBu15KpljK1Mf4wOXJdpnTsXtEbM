@@ -8,6 +8,7 @@
 #include <vector>
 #include <iostream>
 #include <cassert>
+#include <fstream>
 
 #include "IModelExecutor.hpp"
 
