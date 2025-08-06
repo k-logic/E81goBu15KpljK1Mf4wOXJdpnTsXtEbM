@@ -1,3 +1,7 @@
+#if !defined(USE_TENSORRT) && !defined(USE_TFLITE)
+    #error "You must define either -DUSE_TENSORRT or -DUSE_TFLITE"
+#endif
+
 #define FMT_HEADER_ONLY
 #define ASIO_STANDALONE
 // 標準ライブラリ
@@ -20,8 +24,16 @@
 #include <udp_server.hpp>
 #include <image_utils.hpp>
 
-#include "IModelExecutor.hpp"
-#include "TFLiteExecutor.hpp"
+#if defined(USE_TENSORRT)
+#include <IModelExecutor.hpp>
+#include <TensorRTExecutor.hpp>
+#include <cuda_runtime.h>
+#endif
+
+#if defined(USE_TFLITE)
+#include <IModelExecutor.hpp>
+#include <TFLiteExecutor.hpp>
+#endif
 
 using namespace config;
 
@@ -51,7 +63,9 @@ void display_decoded_image(const float* chw, int c, int h, int w) {
     cv::waitKey(1);
 }
 
-void decoder_thread(std::unique_ptr<IModelExecutor>& decoder) {
+void decoder_thread(std::unique_ptr<IModelExecutor>& decoder_model) {
+    std::vector<float> decoded;
+
     while (true) {
         std::unique_lock lock(job_mutex);
         job_cv.wait(lock, [] {
@@ -74,8 +88,7 @@ void decoder_thread(std::unique_ptr<IModelExecutor>& decoder) {
         lock.unlock();
 
         try {
-            std::vector<float> decoded;
-            decoder->run(job.second, decoded);
+            decoder_model->run(job.second, decoded);
             //std::string filename = std::format("frame_{:05d}.png", job.first);
             std::string filename = "frame_out.png";
             image_utils::save_image(decoded.data(), IMAGE_C, IMAGE_H, IMAGE_W, filename);
@@ -139,12 +152,23 @@ int main() {
     asio::io_context io;
     UdpServer server(io, 8004);
 
-    // モデル読み込み（TFLiteExecutorとして実装）
-    std::unique_ptr<IModelExecutor> decoder = std::make_unique<TFLiteExecutor>();
-    decoder->load(DECODER_PATH);
+    // LiteRT用
+    #if defined(USE_TFLITE)
+        std::unique_ptr<IModelExecutor> decoder_model;
+        decoder_model = std::make_unique<TFLiteExecutor>();
+        decoder_model->load(DECODER_PATH);
+    #endif
+
+    // TensorRT用
+    #if defined(USE_TENSORRT)
+        cudaStream_t stream;
+        cudaStreamCreate(&stream);
+        decoder_model = std::make_unique<TensorRTExecutor>(stream);
+        decoder_model->load(DECODER_PATH);
+    #endif
 
     // デコーダースレッド起動
-    std::thread decode_thread(decoder_thread, std::ref(decoder));
+    std::thread decode_thread(decoder_thread, std::ref(decoder_model));
 
     asio::co_spawn(io, run_server(server), asio::detached);
     io.run();

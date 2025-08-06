@@ -2,12 +2,22 @@
 
 ### encoder
 ```
-g++ -std=c++23 src/encoder.cpp -Iinclude -L./lib -ltensorflowlite `pkg-config --cflags --libs opencv4` -Wl,-rpath=./lib -o encoder_app
+g++ -std=c++23 src/encoder.cpp -Iinclude -L./lib -ltensorflowlite `pkg-config --cflags --libs opencv4` -Wl,-rpath=./lib -DUSE_TFLITE -o encoder_app
+```
+
+#### encoder CUDA
+```
+g++ -std=c++23 src/encoder.cpp -I./include -I/usr/include/aarch64-linux-gnu -I/usr/local/cuda/include -L./lib -L/usr/lib/aarch64-linux-gnu -L/usr/local/cuda/lib64 -lnvinfer -lcudart `pkg-config --cflags --libs opencv4` -DUSE_TENSORRT -o encoder_app
 ```
 
 ### decoder
 ```
-g++ -std=c++23 src/decoder.cpp -Iinclude -L./lib -ltensorflowlite `pkg-config --cflags --libs opencv4` -Wl,-rpath=./lib -o decoder_app
+g++ -std=c++23 src/decoder.cpp -Iinclude -L./lib -ltensorflowlite `pkg-config --cflags --libs opencv4` -Wl,-rpath=./lib -DUSE_TFLITE -o decoder_app
+```
+
+#### decoder CUDA
+```
+g++ -std=c++23 src/decoder.cpp -I./include -I/usr/include/aarch64-linux-gnu -I/usr/local/cuda/include -L./lib -L/usr/lib/aarch64-linux-gnu -L/usr/local/cuda/lib64 -lnvinfer -lcudart `pkg-config --cflags --libs opencv4` -DUSE_TENSORRT -o decoder_app
 ```
 
 ## install modules
@@ -95,3 +105,5 @@ cp -r ./tensorflow/* $my_project/include/tensorflow/
 # flatbuffers/flatbuffers.hもincludeする
 cp -r ./bazel-bin/external/flatbuffers/_virtual_includes/flatbuffers/flatbuffers/* $my_project/include/flatbuffers/
 ```
+
+

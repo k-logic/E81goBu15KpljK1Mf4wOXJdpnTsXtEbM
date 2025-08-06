@@ -1,3 +1,7 @@
+#if !defined(USE_TENSORRT) && !defined(USE_TFLITE)
+    #error "You must define either -DUSE_TENSORRT or -DUSE_TFLITE"
+#endif
+
 #define FMT_HEADER_ONLY
 // 外部ライブラリ
 #include <fmt/core.h>
@@ -11,8 +15,16 @@
 #include <udp_sender.hpp>
 #include <camera_input.hpp>
 
-#include "IModelExecutor.hpp"
-#include "TFLiteExecutor.hpp"
+#if defined(USE_TENSORRT)
+#include <IModelExecutor.hpp>
+#include <TensorRTExecutor.hpp>
+#include <cuda_runtime.h>
+#endif
+
+#if defined(USE_TFLITE)
+#include <IModelExecutor.hpp>
+#include <TFLiteExecutor.hpp>
+#endif
 
 using namespace config;
 
@@ -48,13 +60,23 @@ int main() {
                 
         CameraInput camera(0, IMAGE_W, IMAGE_H, FRAME_FPS);
 
-        std::unique_ptr<IModelExecutor> encoder;
+        std::unique_ptr<IModelExecutor> encoder_model;
 
-        encoder = std::make_unique<TFLiteExecutor>();
-        encoder->load(ENCODER_PATH);
+        // liteRT用
+        #if defined(USE_TFLITE)
+            encoder_model = std::make_unique<TFLiteExecutor>();
+            encoder_model->load(ENCODER_PATH);
+        #endif
+
+        // TensorRT用
+        #if defined(USE_TENSORRT)
+            cudaStream_t stream;
+            cudaStreamCreate(&stream);
+            encoder_model = std::make_unique<TensorRTExecutor>(stream);
+            encoder_model->load(ENCODER_PATH);
+        #endif
 
         std::vector<float> encoded;
-
         int frame_id = 0;
         while (true) {
             // キー入力
@@ -66,7 +88,7 @@ int main() {
                 continue;
             }
 
-            encoder->run(input, encoded);
+            encoder_model->run(input, encoded);
 
             std::cout << fmt::format("Encoded size: {} byte\n", encoded.size() * 4);
             std::cout << fmt::format("Output size: {} byte\n", encoded.size());    
