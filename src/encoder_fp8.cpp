@@ -58,7 +58,7 @@ int main() {
         UdpSender sender;
         sender.init_sync(io, CAMERA_HOST, CAMERA_PORT);
 
-        CameraInput camera(0, IMAGE_W, IMAGE_H, FRAME_FPS);
+        CameraInput camera(CAMERA_SOURCE, IMAGE_W, IMAGE_H, FRAME_FPS);
 
         std::unique_ptr<IModelExecutor> encoder_model;
 

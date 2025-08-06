@@ -12,10 +12,11 @@ private:
     int width_, height_, fps_, channels_;
 
 public:
-    CameraInput(int cap_index = 0, int width = 640, int height = 480, int fps = 30)
+    CameraInput(const std::string& camera_source = "/dev/video0", int width = 640, int height = 480, int fps = 30)
         : width_(width), height_(height), fps_(fps)
     {
-        cap_.open(cap_index);
+        //cap_.open(camera_source);
+        cap_.open(camera_source, cv::CAP_V4L2);
         if (!cap_.isOpened()) {
             throw std::runtime_error("カメラを開けませんでした。");
         }

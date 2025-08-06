@@ -5,8 +5,9 @@
 #define RESOURCE_DIR "resource/"
 
 namespace config {
-    constexpr const char* ENCODER_PATH = MODEL_DIR "encoder.tflite";
-    constexpr const char* DECODER_PATH = MODEL_DIR "decoder.tflite";
+    constexpr const char* CAMERA_SOURCE = "/dev/video0";
+    constexpr const char* ENCODER_PATH = MODEL_DIR "encoder.engine";
+    constexpr const char* DECODER_PATH = MODEL_DIR "decoder.engine";
     constexpr const char* IMAGE_PATH   = RESOURCE_DIR "8.jpg";
     //constexpr const char* CAMERA_HOST = "127.0.0.1";
     constexpr const char* CAMERA_HOST = "10.211.55.11";
