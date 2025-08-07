@@ -52,19 +52,6 @@ public:
         frame.convertTo(frame, CV_32F, 1.0 / 255.0);
 
         return bgr_to_chw(frame);
-        
-        /*
-        std::vector<cv::Mat> rgb_channels;
-        cv::split(frame, rgb_channels);
-
-        std::vector<float> chw;
-        chw.reserve(channels * width_ * height_);
-
-        for (const auto& ch : rgb_channels) {
-            chw.insert(chw.end(), (float*)ch.datastart, (float*)ch.dataend);
-        }
-        return chw;
-        */
     }
 
     std::vector<float> bgr_to_chw(const cv::Mat& frame) {
