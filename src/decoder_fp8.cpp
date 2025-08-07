@@ -52,32 +52,36 @@ std::atomic<bool> shutdown_flag = false;
 // CHW形式→OpenCV形式 (BGR)
 void display_decoded_image(const float* chw, int c, int h, int w) {
     static auto last_time = std::chrono::high_resolution_clock::now();
-    cv::Mat image(h, w, CV_32FC3);
 
-    for (int y = 0; y < h; ++y) {
-        for (int x = 0; x < w; ++x) {
-            image.at<cv::Vec3f>(y, x)[0] = chw[0 * h * w + y * w + x];
-            image.at<cv::Vec3f>(y, x)[1] = chw[1 * h * w + y * w + x];
-            image.at<cv::Vec3f>(y, x)[2] = chw[2 * h * w + y * w + x];
-        }
+    // 1. 高速に CHW → HWC (OpenCV BGR形式)
+    cv::Mat image(h, w, CV_32FC3);
+    float* dst = reinterpret_cast<float*>(image.data);
+    const size_t hw = h * w;
+
+    for (size_t i = 0; i < hw; ++i) {
+        // OpenCV BGR 順に格納
+        dst[i * 3 + 0] = chw[0 * hw + i]; // B
+        dst[i * 3 + 1] = chw[1 * hw + i]; // G
+        dst[i * 3 + 2] = chw[2 * hw + i]; // R
     }
 
-    // 0〜1 → 0〜255へスケーリング
-    cv::Mat image_uint8;
+    // 2. float [0.0–1.0] → uint8 [0–255] に変換（CV_8UC3に）
+    static cv::Mat image_uint8;
     image.convertTo(image_uint8, CV_8UC3, 255.0);
 
-    // FPS計測
+    // 3. FPS計測
     auto now = std::chrono::high_resolution_clock::now();
     float fps = 1000.0f / std::chrono::duration<float, std::milli>(now - last_time).count();
     last_time = now;
 
-    // 画像上にFPS表示
-    std::string fps_text = cv::format("FPS: %.2f", fps);
-    cv::putText(image_uint8, fps_text, cv::Point(10, 30), cv::FONT_HERSHEY_SIMPLEX,
-                1.0, cv::Scalar(0, 255, 0), 2);
+    // 4. FPS描画（低解像度向け最適化）
+    static char fps_buf[32];
+    std::snprintf(fps_buf, sizeof(fps_buf), "FPS: %.1f", fps);
+    cv::putText(image_uint8, fps_buf, cv::Point(10, 30), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 255, 0), 2);
 
+    // 5. 表示（GUI遅延を最小化）
     cv::imshow("Decoded", image_uint8);
-    cv::waitKey(1);
+    cv::waitKey(1);  // waitKey(0)はNG（ブロッキング）
 }
 
 void decoder_thread(std::unique_ptr<IModelExecutor>& decoder_model) {
