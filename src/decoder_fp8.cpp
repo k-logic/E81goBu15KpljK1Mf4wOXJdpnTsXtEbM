@@ -12,6 +12,7 @@
 #include <map>
 #include <queue>
 #include <optional>
+#include <chrono>
 // 外部ライブラリ
 #include <fmt/core.h>
 #include <asio/asio.hpp>
@@ -50,6 +51,7 @@ std::atomic<bool> shutdown_flag = false;
 
 // CHW形式→OpenCV形式 (BGR)
 void display_decoded_image(const float* chw, int c, int h, int w) {
+    static auto last_time = std::chrono::high_resolution_clock::now();
     cv::Mat image(h, w, CV_32FC3);
 
     for (int y = 0; y < h; ++y) {
@@ -60,7 +62,21 @@ void display_decoded_image(const float* chw, int c, int h, int w) {
         }
     }
 
-    cv::imshow("Decoded", image);
+    // 0〜1 → 0〜255へスケーリング
+    cv::Mat image_uint8;
+    image.convertTo(image_uint8, CV_8UC3, 255.0);
+
+    // FPS計測
+    auto now = std::chrono::high_resolution_clock::now();
+    float fps = 1000.0f / std::chrono::duration<float, std::milli>(now - last_time).count();
+    last_time = now;
+
+    // 画像上にFPS表示
+    std::string fps_text = cv::format("FPS: %.2f", fps);
+    cv::putText(image_uint8, fps_text, cv::Point(10, 30), cv::FONT_HERSHEY_SIMPLEX,
+                1.0, cv::Scalar(0, 255, 0), 2);
+
+    cv::imshow("Decoded", image_uint8);
     cv::waitKey(1);
 }
 
@@ -91,8 +107,8 @@ void decoder_thread(std::unique_ptr<IModelExecutor>& decoder_model) {
             decoder_model->run(job.second, decoded);
             //std::string filename = std::format("frame_{:05d}.png", job.first);
             std::string filename = "frame_out.png";
-            image_utils::save_image(decoded.data(), IMAGE_C, IMAGE_H, IMAGE_W, filename);
-            //display_decoded_image(decoded.data(), IMAGE_C, IMAGE_H, IMAGE_W);
+            //image_utils::save_image(decoded.data(), IMAGE_C, IMAGE_H, IMAGE_W, filename);
+            display_decoded_image(decoded.data(), IMAGE_C, IMAGE_H, IMAGE_W);
             std::cout << fmt::format("decoded & saved: {}\n", job.first);
         } catch (const std::exception& e) {
             std::cerr << fmt::format("[DECODE ERROR] {}\n", e.what());
@@ -121,8 +137,8 @@ void on_receive(const udp::endpoint& sender, const std::vector<uint8_t>& packet)
                 sorted_chunks[cid] = std::move(data);
             }
         
-            std::vector<float> chw_data = chunker::reconstruct_from_chunks<float>(
-                sorted_chunks, CHUNK_C, CHUNK_H, CHUNK_W, CHUNK_PIXEL);
+            std::vector<float> chw_data(CHUNK_C * CHUNK_H * CHUNK_W);
+            chunker::reconstruct_from_chunks_into(sorted_chunks, chw_data.data(), CHUNK_C, CHUNK_H, CHUNK_W, CHUNK_PIXEL);
         
             // ジョブキュー管理
             {

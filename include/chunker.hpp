@@ -37,6 +37,7 @@ std::vector<std::vector<T>> chunk_by_pixels(
 }
 
 // チャンク化データを元のCHW形式「1次元ベクトル」に再構築化
+/*
 template <typename T = float>
 std::vector<T> reconstruct_from_chunks(
     const std::vector<std::vector<T>>& chunks,
@@ -63,6 +64,37 @@ std::vector<T> reconstruct_from_chunks(
     }
 
     return chw_data;
+}
+*/
+
+// ゼロコピー版：チャンク化データを元のCHW形式「1次元ベクトル」に再構築化
+template <typename T = float>
+void reconstruct_from_chunks(
+    const std::vector<std::vector<T>>& chunks,
+    T* chw_data,
+    int c, int h, int w,
+    int pixels_per_chunk = 16
+) {
+    const int hw = h * w;
+    int pixel_index = 0;
+
+    for (const auto& chunk : chunks) {
+        const int num_pixels = chunk.size() / c;
+
+        for (int p = 0; p < num_pixels; ++p) {
+            if (pixel_index >= hw) break;
+
+            const int y = pixel_index / w;
+            const int x = pixel_index % w;
+
+            for (int ch = 0; ch < c; ++ch) {
+                const int dst_index = ch * hw + y * w + x;
+                chw_data[dst_index] = chunk[p * c + ch];
+            }
+
+            ++pixel_index;
+        }
+    }
 }
 
 // チャンクを欠損させ、復元時に欠損箇所は黒（0埋め）にするための情報付き出力
