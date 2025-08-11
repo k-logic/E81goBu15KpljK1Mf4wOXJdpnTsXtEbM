@@ -40,117 +40,59 @@
 
 using namespace config;
 
-// チャンクの一時保存
-std::map<uint32_t, std::unordered_map<uint32_t, std::vector<float>>> frame_buffer;
+// 1フレーム分だけ保持するバッファ構造
+struct FrameBuffer {
+    std::vector<std::vector<float>> chunks; // 各チャンクのデータ
+    std::vector<bool> received_flags;       // 到着フラグ
+    int received_count = 0;
+    int chunk_total = 0;
+};
 
-// デコード待ちのフレーム（ジョブキュー）
-std::queue<std::pair<uint32_t, std::vector<float>>> job_queue;
-std::optional<std::pair<uint32_t, std::vector<float>>> latest_job;
-std::mutex job_mutex;
-std::condition_variable job_cv;
-std::atomic<bool> shutdown_flag = false;
-
-void decoder_thread(std::unique_ptr<IModelExecutor>& decoder_model) {
-    while (true) {
-        std::unique_lock lock(job_mutex);
-        job_cv.wait(lock, [] {
-            return shutdown_flag || 
-                (!REALTIME_MODE && !job_queue.empty()) || 
-                (REALTIME_MODE && latest_job.has_value());
-        });
-
-        if (shutdown_flag.load()) break;
-
-        std::pair<uint32_t, std::vector<float>> job;
-        if (REALTIME_MODE) {
-            job = std::move(latest_job.value());
-            latest_job.reset();
-        } else {
-            job = std::move(job_queue.front());
-            job_queue.pop();
-        }
-
-        lock.unlock();
-
-        try {
-            std::vector<float> decoded;
-            decoder_model->run(job.second, decoded);
-            std::string filename = "frame_out.png";
-            //image_utils::save_image(decoded.data(), IMAGE_C, IMAGE_H, IMAGE_W, filename);
-            image_display::display_decoded_image_chw(decoded.data(), IMAGE_C, IMAGE_H, IMAGE_W);
-            std::cout << fmt::format("decoded & saved: {}\n", job.first);
-        } catch (const std::exception& e) {
-            std::cerr << fmt::format("[DECODE ERROR] {}\n", e.what());
-        }
-    }
-}
+static FrameBuffer current_frame;
+static uint32_t current_frame_id = 0;
 
 // UDP受信処理
-void on_receive(const udp::endpoint& sender, const std::vector<uint8_t>& packet) {
+void on_receive(const udp::endpoint& sender, const std::vector<uint8_t>& packet, IModelExecutor& decoder_model) {
     try {
-        // パケットパース
-        packet::packet_u8 parsed = packet::parse_packet_u8(packet);
+        auto parsed = packet::parse_packet_u8(packet);
 
-        // 受信ログ
-        std::cout << fmt::format("packet frame_id: {} chunk_id: {} size: {}\n",
-                                 parsed.header.frame_id, parsed.header.chunk_id, packet.size());
-
-        // 古いフレーム破棄
-        while (!frame_buffer.empty() &&
-               parsed.header.frame_id - frame_buffer.begin()->first > BUFF_FRAME) {
-            frame_buffer.erase(frame_buffer.begin());
+        // 新しいフレームの場合初期化
+        if (parsed.header.frame_id != current_frame_id) {
+            current_frame_id = parsed.header.frame_id;
+            current_frame.chunk_total = parsed.header.chunk_total;
+            current_frame.received_count = 0;
+            current_frame.chunks.assign(current_frame.chunk_total, std::vector<float>(CHUNK_PIXEL * CHUNK_C, 0.0f));
+            current_frame.received_flags.assign(current_frame.chunk_total, false);
         }
 
-        // チャンクを格納（同じframe_id, chunk_idが既にあるなら上書き）
-        frame_buffer[parsed.header.frame_id][parsed.header.chunk_id] =
-            other_utils::fp8_bytes_to_float32(parsed.compressed);
+        // チャンク格納
+        if (!current_frame.received_flags[parsed.header.chunk_id]) {
+            current_frame.chunks[parsed.header.chunk_id] =
+                other_utils::fp8_bytes_to_float32(parsed.compressed);
+            current_frame.received_flags[parsed.header.chunk_id] = true;
+            current_frame.received_count++;
+        }
 
-        // フレームが全チャンク揃っているか確認
-        auto it = frame_buffer.find(parsed.header.frame_id);
-        if (it != frame_buffer.end() &&
-            it->second.size() >= parsed.header.chunk_total) {
-
-            // 欠損補完込みでソート済みチャンク配列を構築
-            std::vector<std::vector<float>> sorted_chunks(parsed.header.chunk_total);
-            for (int cid = 0; cid < parsed.header.chunk_total; ++cid) {
-                auto found = it->second.find(cid);
-                if (found != it->second.end()) {
-                    sorted_chunks[cid] = std::move(found->second);
-                } else {
-                    sorted_chunks[cid] = std::vector<float>(CHUNK_PIXEL * CHUNK_C, 0.0f);  // 黒補完
-                }
-            }
-
-            // hwc画像に復元
+        // 揃ったら即デコード
+        if (current_frame.received_count >= current_frame.chunk_total) {
             std::vector<float> hwc(CHUNK_C * CHUNK_H * CHUNK_W);
-            chunker::reconstruct_from_chunks_hwc(
-                sorted_chunks, hwc.data(), CHUNK_C, CHUNK_H, CHUNK_W
-            );
+            chunker::reconstruct_from_chunks_hwc(current_frame.chunks, hwc.data(), CHUNK_C, CHUNK_H, CHUNK_W);
 
-            // 推論または表示用ジョブとして投入
-            {
-                std::lock_guard lock(job_mutex);
-                if (REALTIME_MODE) {
-                    latest_job = std::make_pair(parsed.header.frame_id, std::move(hwc));
-                } else {
-                    job_queue.emplace(parsed.header.frame_id, std::move(hwc));
-                }
-            }
-
-            job_cv.notify_one();       // 待機スレッドに通知
-            frame_buffer.erase(it);    // メモリ解放
+            std::vector<float> decoded;
+            decoder_model.run(hwc, decoded);
+            image_display::display_decoded_image_chw(decoded.data(), IMAGE_C, IMAGE_H, IMAGE_W);
         }
 
     } catch (const std::exception& e) {
-        std::cerr << fmt::format("[RECEIVE ERROR] {}\n", e.what());
+        std::cerr << "[RECEIVE ERROR] " << e.what() << "\n";
     }
 }
 
-
-asio::awaitable<void> run_server(UdpServer& server) {
-    co_await server.start([](const udp::endpoint& sender, const std::vector<char>& data) {
+// 非同期サーバー起動
+asio::awaitable<void> run_server(UdpServer& server, IModelExecutor& decoder_model) {
+    co_await server.start([&](const udp::endpoint& sender, const std::vector<char>& data) {
         std::vector<uint8_t> raw_packet(data.begin(), data.end());
-        on_receive(sender, raw_packet);
+        on_receive(sender, raw_packet, decoder_model);
     });
 }
 
@@ -174,19 +116,9 @@ int main() {
         decoder_model->load(DECODER_PATH);
     #endif
 
-    // デコーダースレッド起動
-    std::thread decode_thread(decoder_thread, std::ref(decoder_model));
-
-    asio::co_spawn(io, run_server(server), asio::detached);
+    // 即時デコード型なのでスレッドは不要
+    asio::co_spawn(io, run_server(server, *decoder_model), asio::detached);
     io.run();
-
-    // 終了処理
-    {
-        std::lock_guard lock(job_mutex);
-        shutdown_flag = true;
-    }
-    job_cv.notify_one();
-    decode_thread.join();
 
     return 0;
 }
