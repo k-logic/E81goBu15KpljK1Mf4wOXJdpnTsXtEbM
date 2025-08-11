@@ -75,11 +75,22 @@ void on_receive(const udp::endpoint& sender, const std::vector<uint8_t>& packet,
 
         // 揃ったら即デコード
         if (current_frame.received_count >= current_frame.chunk_total) {
+            // 欠損チャンクを黒埋め
+            for (int i = 0; i < current_frame.chunk_total; ++i) {
+                if (!current_frame.received_flags[i]) {
+                    std::fill(current_frame.chunks[i].begin(), current_frame.chunks[i].end(), 0.0f);
+                }
+            }
+
+            // HWC画像に復元
             std::vector<float> hwc(CHUNK_C * CHUNK_H * CHUNK_W);
             chunker::reconstruct_from_chunks_hwc(current_frame.chunks, hwc.data(), CHUNK_C, CHUNK_H, CHUNK_W);
 
+            // デコード
             std::vector<float> decoded;
             decoder_model.run(hwc, decoded);
+
+            // 表示
             image_display::display_decoded_image_chw(decoded.data(), IMAGE_C, IMAGE_H, IMAGE_W);
         }
 
