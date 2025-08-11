@@ -77,10 +77,11 @@ int main() {
         #endif
 
         std::vector<float> encoded;
+        std::vector<std::vector<float>> chunks;
         int frame_id = 0;
         while (true) {
             // キー入力
-            int key = cv::waitKey(10);
+            int key = cv::waitKey(1);
             if (key == 'q') break;
             std::vector<float> input = camera.get_frame_chw();
             if (input.empty()) {
@@ -89,11 +90,12 @@ int main() {
             }
 
             encoder_model->run(input, encoded);
-
-            std::cout << fmt::format("Encoded size: {} byte\n", encoded.size() * 4);
-            std::cout << fmt::format("Output size: {} byte\n", encoded.size());    
-            std::vector<std::vector<float>> chunks = chunker::chunk_by_pixels<float>(encoded, CHUNK_C, CHUNK_H, CHUNK_W, CHUNK_PIXEL);
+  
+            //std::vector<std::vector<float>> chunks = chunker::chunk_by_pixels(encoded, CHUNK_C, CHUNK_H, CHUNK_W, CHUNK_PIXEL);
+            chunker::chunk_by_pixels_hwc(encoded, CHUNK_C, CHUNK_H, CHUNK_W, CHUNK_PIXEL, chunks);
             debug_utils::print_chunk_info(chunks, CHUNK_H, CHUNK_W);
+            std::cout << fmt::format("Encoded size: {} byte\n", encoded.size() * 4);
+            std::cout << fmt::format("Output size: {} byte\n", encoded.size());  
             std::cout << fmt::format("Total Chunk: {}\n", chunks.size());
             send_chunks(io, sender, frame_id, chunks);
             frame_id++;
