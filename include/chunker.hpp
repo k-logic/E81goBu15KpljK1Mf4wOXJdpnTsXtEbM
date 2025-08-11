@@ -123,36 +123,22 @@ inline void reconstruct_from_chunks_chw(
 
 // chunks(=HWCでピクセル連続) → HWC一次元配列 へ再構築
 inline void reconstruct_from_chunks_hwc(
-    const std::vector<std::vector<float>>& chunks,
+    const std::vector<std::vector<float>>& chunks, // ソート済み・欠損補完済み
     float* hwc_data,
-    int c,
-    int h,
-    int w
+    int c, int h, int w
 ) {
-    if (!hwc_data) {
-        throw std::invalid_argument("hwc_data must not be null");
-    }
-    if (c <= 0 || h <= 0 || w <= 0) {
-        throw std::invalid_argument("c, h, w must be positive");
-    }
-
-    const size_t total_elems = static_cast<size_t>(h) * static_cast<size_t>(w) * static_cast<size_t>(c);
-    size_t written = 0;
+    const int hw = h * w;
+    int pixel_index = 0;
 
     for (const auto& chunk : chunks) {
-        if (chunk.empty()) continue;
-
-        // チャンクのサイズは通常 c の倍数（最後だけ不足の可能性あり）
-        size_t remain = total_elems - written;
-        if (remain == 0) break;
-
-        const size_t copy_elems = std::min(remain, chunk.size());
-        std::memcpy(hwc_data + written, chunk.data(), copy_elems * sizeof(float));
-        written += copy_elems;
-    }
-
-    if (written != total_elems) {
-        throw std::runtime_error("Insufficient chunk data to fill HWC buffer (written != h*w*c)");
+        const int num_pixels = static_cast<int>(chunk.size()) / c;
+        for (int p = 0; p < num_pixels; ++p) {
+            if (pixel_index >= hw) break;
+            for (int ch = 0; ch < c; ++ch) {
+                hwc_data[pixel_index * c + ch] = chunk[p * c + ch];
+            }
+            ++pixel_index;
+        }
     }
 }
 
