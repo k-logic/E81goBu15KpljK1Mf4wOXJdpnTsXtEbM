@@ -283,18 +283,18 @@ void on_receive(const udp::endpoint& sender, const std::vector<uint8_t>& packet)
             }
 
             // CHW画像に復元
-            std::vector<float> chw(CHUNK_C * CHUNK_H * CHUNK_W);
-            chunker::reconstruct_from_chunks_chw(
-                sorted_chunks, chw.data(), CHUNK_C, CHUNK_H, CHUNK_W, CHUNK_PIXEL
+            std::vector<float> hwc(CHUNK_C * CHUNK_H * CHUNK_W);
+            chunker::reconstruct_from_chunks_hwc(
+                sorted_chunks, hwc.data(), CHUNK_C, CHUNK_H, CHUNK_W
             );
 
             // 推論または表示用ジョブとして投入
             {
                 std::lock_guard lock(job_mutex);
                 if (REALTIME_MODE) {
-                    latest_job = std::make_pair(parsed.header.frame_id, std::move(chw));
+                    latest_job = std::make_pair(parsed.header.frame_id, std::move(hwc));
                 } else {
-                    job_queue.emplace(parsed.header.frame_id, std::move(chw));
+                    job_queue.emplace(parsed.header.frame_id, std::move(hwc));
                 }
             }
 
