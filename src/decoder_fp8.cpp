@@ -51,6 +51,10 @@ struct FrameBuffer {
 static FrameBuffer current_frame;
 static uint32_t current_frame_id = 0;
 
+// グローバルまたはmainの外で固定バッファを持つ
+static std::vector<float> hwc(CHUNK_C * CHUNK_H * CHUNK_W);
+static std::vector<float> decoded(IMAGE_C * IMAGE_H * IMAGE_W);
+
 // UDP受信処理
 void on_receive(const udp::endpoint& sender, const std::vector<uint8_t>& packet, IModelExecutor& decoder_model) {
     try {
@@ -83,11 +87,9 @@ void on_receive(const udp::endpoint& sender, const std::vector<uint8_t>& packet,
             }
 
             // HWC画像に復元
-            std::vector<float> hwc(CHUNK_C * CHUNK_H * CHUNK_W);
             chunker::reconstruct_from_chunks_hwc(current_frame.chunks, hwc.data(), CHUNK_C, CHUNK_H, CHUNK_W);
 
             // デコード
-            std::vector<float> decoded;
             decoder_model.run(hwc, decoded);
 
             // 表示
