@@ -60,8 +60,34 @@ void on_receive(const udp::endpoint& sender, const std::vector<uint8_t>& packet,
     try {
         auto parsed = packet::parse_packet_u8(packet);
 
-        // 新しいフレームの場合初期化
-        if (parsed.header.frame_id != current_frame_id) {
+        // 新しいフレームが来たら現フレームを表示
+        if (current_frame_id != UINT32_MAX && parsed.header.frame_id != current_frame_id) {
+            // 欠損黒埋め
+            for (int i = 0; i < current_frame.chunk_total; ++i) {
+                if (!current_frame.received_flags[i]) {
+                    std::fill(current_frame.chunks[i].begin(), current_frame.chunks[i].end(), 0.0f);
+                }
+            }
+
+            // 復元
+            chunker::reconstruct_from_chunks_hwc(current_frame.chunks, hwc.data(), CHUNK_C, CHUNK_H, CHUNK_W);
+
+            // デコード
+            decoder_model.run(hwc, decoded);
+
+            // 表示
+            image_display::display_decoded_image_chw(decoded.data(), IMAGE_C, IMAGE_H, IMAGE_W);
+
+            // 新フレーム用に初期化
+            current_frame_id = parsed.header.frame_id;
+            current_frame.chunk_total = parsed.header.chunk_total;
+            current_frame.received_count = 0;
+            current_frame.chunks.assign(current_frame.chunk_total, std::vector<float>(CHUNK_PIXEL * CHUNK_C, 0.0f));
+            current_frame.received_flags.assign(current_frame.chunk_total, false);
+        }
+
+        // 初期化（初回または上の分岐後）
+        if (current_frame_id == UINT32_MAX) {
             current_frame_id = parsed.header.frame_id;
             current_frame.chunk_total = parsed.header.chunk_total;
             current_frame.received_count = 0;
@@ -70,36 +96,18 @@ void on_receive(const udp::endpoint& sender, const std::vector<uint8_t>& packet,
         }
 
         // チャンク格納
-        if (!current_frame.received_flags[parsed.header.chunk_id]) {
-            current_frame.chunks[parsed.header.chunk_id] =
-                other_utils::fp8_bytes_to_float32(parsed.compressed);
+        if (parsed.header.chunk_id < current_frame.chunk_total &&
+            !current_frame.received_flags[parsed.header.chunk_id]) {
+            current_frame.chunks[parsed.header.chunk_id] = other_utils::fp8_bytes_to_float32(parsed.compressed);
             current_frame.received_flags[parsed.header.chunk_id] = true;
             current_frame.received_count++;
-        }
-
-        // 揃ったら即デコード
-        if (current_frame.received_count >= current_frame.chunk_total) {
-            // 欠損チャンクを黒埋め
-            for (int i = 0; i < current_frame.chunk_total; ++i) {
-                if (!current_frame.received_flags[i]) {
-                    std::fill(current_frame.chunks[i].begin(), current_frame.chunks[i].end(), 0.0f);
-                }
-            }
-
-            // HWC画像に復元
-            chunker::reconstruct_from_chunks_hwc(current_frame.chunks, hwc.data(), CHUNK_C, CHUNK_H, CHUNK_W);
-
-            // デコード
-            decoder_model.run(hwc, decoded);
-
-            // 表示
-            image_display::display_decoded_image_chw(decoded.data(), IMAGE_C, IMAGE_H, IMAGE_W);
         }
 
     } catch (const std::exception& e) {
         std::cerr << "[RECEIVE ERROR] " << e.what() << "\n";
     }
 }
+
 
 // 非同期サーバー起動
 asio::awaitable<void> run_server(UdpServer& server, IModelExecutor& decoder_model) {
