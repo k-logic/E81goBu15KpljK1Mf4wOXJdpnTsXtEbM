@@ -23,7 +23,7 @@ namespace config {
     constexpr int ENCODER_OUT_W = 80;  // エンコーダー出力の幅
     constexpr int ENCODER_OUT_H = 45;  // エンコーダー出力の高さ
     constexpr int CHUNK_PIXEL = 80;
-    constexpr int FRAME_FPS = 30;
+    constexpr int FRAME_FPS = 60;
     constexpr int BUFF_FRAME = 1;
     constexpr bool REALTIME_MODE = true;
 }

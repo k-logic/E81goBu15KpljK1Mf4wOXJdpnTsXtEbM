@@ -26,6 +26,7 @@
 #include <udp_server.hpp>
 #include <image_utils.hpp>
 #include <image_display.hpp>
+#include <image_display2.hpp>
 
 #if defined(USE_TENSORRT)
 #include <IModelExecutor.hpp>
@@ -76,7 +77,8 @@ void on_receive(const udp::endpoint& sender, const std::vector<uint8_t>& packet,
             decoder_model.run(hwc, decoded);
 
             // 表示
-            image_display::display_decoded_image_chw(decoded.data(), IMAGE_C, IMAGE_H, IMAGE_W);
+            //image_display::display_decoded_image_chw(decoded.data(), IMAGE_C, IMAGE_H, IMAGE_W);
+            image_display::enqueue_frame_chw(decoded.data(), IMAGE_C, IMAGE_H, IMAGE_W);
 
             // 新フレーム用に初期化
             current_frame_id = parsed.header.frame_id;
@@ -122,6 +124,8 @@ int main() {
     UdpServer server(io, 8004);
 
     std::unique_ptr<IModelExecutor> decoder_model;
+    
+    image_display::start_display_thread();
 
     // LiteRT用
     #if defined(USE_TFLITE)
@@ -140,6 +144,7 @@ int main() {
     // 即時デコード型なのでスレッドは不要
     asio::co_spawn(io, run_server(server, *decoder_model), asio::detached);
     io.run();
+    image_display::stop_display_thread();
 
     return 0;
 }

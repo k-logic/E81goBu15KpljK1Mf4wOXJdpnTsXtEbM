@@ -20,10 +20,18 @@ public:
         if (!cap_.isOpened()) {
             throw std::runtime_error("カメラを開けませんでした。");
         }
+        
+        // MJPGに設定
+        cap_.set(cv::CAP_PROP_FOURCC, cv::VideoWriter::fourcc('M', 'J', 'P', 'G'));
 
         cap_.set(cv::CAP_PROP_FRAME_WIDTH, width_);
         cap_.set(cv::CAP_PROP_FRAME_HEIGHT, height_);
         cap_.set(cv::CAP_PROP_FPS, fps_);
+        cap_.set(cv::CAP_PROP_BUFFERSIZE, 1);
+        std::cout << "==== Camera Settings ====\n";
+        std::cout << "Width  : " << cap_.get(cv::CAP_PROP_FRAME_WIDTH)  << "\n";
+        std::cout << "Height : " << cap_.get(cv::CAP_PROP_FRAME_HEIGHT) << "\n";
+        std::cout << "FPS    : " << cap_.get(cv::CAP_PROP_FPS)          << "\n";
 
         // ウォームアップ
         cv::Mat dummy;
