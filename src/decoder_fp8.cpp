@@ -52,7 +52,7 @@ static FrameBuffer current_frame;
 static uint32_t current_frame_id = 0;
 
 // グローバルまたはmainの外で固定バッファを持つ
-static std::vector<float> hwc(CHUNK_C * CHUNK_H * CHUNK_W);
+static std::vector<float> hwc(ENCODER_OUT_C * ENCODER_OUT_H * ENCODER_OUT_W);
 static std::vector<float> decoded(IMAGE_C * IMAGE_H * IMAGE_W);
 
 // UDP受信処理
@@ -70,7 +70,7 @@ void on_receive(const udp::endpoint& sender, const std::vector<uint8_t>& packet,
             }
 
             // 復元
-            chunker::reconstruct_from_chunks_hwc(current_frame.chunks, hwc.data(), CHUNK_C, CHUNK_H, CHUNK_W);
+            chunker::reconstruct_from_chunks_hwc(current_frame.chunks, hwc.data(), ENCODER_OUT_C, ENCODER_OUT_H, ENCODER_OUT_W);
 
             // デコード
             decoder_model.run(hwc, decoded);
@@ -82,7 +82,7 @@ void on_receive(const udp::endpoint& sender, const std::vector<uint8_t>& packet,
             current_frame_id = parsed.header.frame_id;
             current_frame.chunk_total = parsed.header.chunk_total;
             current_frame.received_count = 0;
-            current_frame.chunks.assign(current_frame.chunk_total, std::vector<float>(CHUNK_PIXEL * CHUNK_C, 0.0f));
+            current_frame.chunks.assign(current_frame.chunk_total, std::vector<float>(CHUNK_PIXEL * ENCODER_OUT_C, 0.0f));
             current_frame.received_flags.assign(current_frame.chunk_total, false);
         }
 
@@ -91,7 +91,7 @@ void on_receive(const udp::endpoint& sender, const std::vector<uint8_t>& packet,
             current_frame_id = parsed.header.frame_id;
             current_frame.chunk_total = parsed.header.chunk_total;
             current_frame.received_count = 0;
-            current_frame.chunks.assign(current_frame.chunk_total, std::vector<float>(CHUNK_PIXEL * CHUNK_C, 0.0f));
+            current_frame.chunks.assign(current_frame.chunk_total, std::vector<float>(CHUNK_PIXEL * ENCODER_OUT_C, 0.0f));
             current_frame.received_flags.assign(current_frame.chunk_total, false);
         }
 

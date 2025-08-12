@@ -19,9 +19,9 @@ namespace config {
     constexpr int IMAGE_C = 3;
     constexpr int IMAGE_W = 1280;
     constexpr int IMAGE_H = 720;
-    constexpr int CHUNK_C = 16;
-    constexpr int CHUNK_W = 80;
-    constexpr int CHUNK_H = 45;
+    constexpr int ENCODER_OUT_C = 16;  // エンコーダー出力のチャンネル
+    constexpr int ENCODER_OUT_W = 80;  // エンコーダー出力の幅
+    constexpr int ENCODER_OUT_H = 45;  // エンコーダー出力の高さ
     constexpr int CHUNK_PIXEL = 80;
     constexpr int FRAME_FPS = 30;
     constexpr int BUFF_FRAME = 1;

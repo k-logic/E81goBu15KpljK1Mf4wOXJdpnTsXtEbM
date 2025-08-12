@@ -91,8 +91,8 @@ int main() {
             
             encoder_model->run(input, encoded);
              
-            chunker::chunk_by_pixels_hwc(encoded, CHUNK_C, CHUNK_H, CHUNK_W, CHUNK_PIXEL, chunks);
-            debug_utils::print_chunk_info(chunks, CHUNK_H, CHUNK_W);
+            chunker::chunk_by_pixels_hwc(encoded, ENCODER_OUT_C, ENCODER_OUT_H, ENCODER_OUT_W, CHUNK_PIXEL, chunks);
+            debug_utils::print_chunk_info(chunks, ENCODER_OUT_H, ENCODER_OUT_W);
             std::cout << fmt::format("Encoded size: {} byte\n", encoded.size() * 4);
             std::cout << fmt::format("Output size: {} byte\n", encoded.size());   
             std::cout << fmt::format("Total Chunk: {}\n", chunks.size());  
