@@ -66,23 +66,21 @@ inline std::vector<float> u32_to_float32(const std::vector<std::uint32_t>& input
 
 // float32 → uint8_t ビット変換
 inline std::vector<uint8_t> float32_to_fp8_bytes(const std::vector<float>& input) {
-  std::vector<uint8_t> out;
-  out.reserve(input.size());
-  for (float val : input) {
-      float8_t f8 = float_to_float8(val);
-      out.push_back(float8_to_uchar(f8));
-  }
-  return out;
+    std::vector<uint8_t> out(input.size());
+    for (size_t i = 0; i < input.size(); ++i) {
+        float8_t f8 = float_to_float8(input[i]);
+        out[i] = float8_to_uchar(f8);
+    }
+    return out;
 }
 
 // uint8_t → float32 復元
 inline std::vector<float> fp8_bytes_to_float32(const std::vector<uint8_t>& input) {
-  std::vector<float> out;
-  out.reserve(input.size());
-  for (uint8_t bits : input) {
-      float8_t f8 = uchar_to_float8(bits);
-      out.push_back(float8_to_float(f8));
-  }
-  return out;
+    std::vector<float> out(input.size());
+    for (size_t i = 0; i < input.size(); ++i) {
+        float8_t f8 = uchar_to_float8(input[i]);
+        out[i] = float8_to_float(f8);
+    }
+    return out;
 }
 }

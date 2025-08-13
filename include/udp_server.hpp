@@ -44,7 +44,7 @@ public:
 
 private:
     void configure_socket(udp::socket& sock) {
-        int rcvbuf_size = 4 * 1024 * 1024;  // 4MB
+        int rcvbuf_size = 64 * 1024;  // 64KB
         int fd = sock.native_handle();
         if (setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &rcvbuf_size, sizeof(rcvbuf_size)) < 0) {
             perror("setsockopt(SO_RCVBUF) failed");

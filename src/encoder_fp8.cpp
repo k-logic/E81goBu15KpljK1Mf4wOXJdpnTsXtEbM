@@ -13,7 +13,7 @@
 #include <other_utils.hpp>
 #include <debug_utils.hpp>
 #include <udp_sender.hpp>
-#include <camera_input.hpp>
+#include <camera_input2.hpp>
 
 #if defined(USE_TENSORRT)
 #include <IModelExecutor.hpp>
@@ -31,7 +31,8 @@ using namespace config;
 void send_chunks(asio::io_context& io, UdpSender& sender, int frame_id, const std::vector<std::vector<float>>& chunks) {
     std::vector<size_t> indices(chunks.size());
     std::iota(indices.begin(), indices.end(), 0);
-    std::shuffle(indices.begin(), indices.end(), std::mt19937{std::random_device{}()});
+    static std::mt19937 rng(std::random_device{}());
+    std::shuffle(indices.begin(), indices.end(), rng);
 
     for (size_t i : indices) {
         std::cout << fmt::format("ーーーーーーーーーーーーーーーーーーーーーーーーー\n");

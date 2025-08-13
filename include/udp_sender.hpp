@@ -61,7 +61,7 @@ private:
         int fd = socket_->native_handle();
 
         // 超低遅延向け：バッファを小さく
-        int sndbuf = 128 * 1024;  // 小さめの送信バッファ（例: 128KB）
+        int sndbuf = 64 * 1024;  // 64KB
         if (setsockopt(fd, SOL_SOCKET, SO_SNDBUF, &sndbuf, sizeof(sndbuf)) < 0) {
             perror("setsockopt(SO_SNDBUF) failed");
         } else {

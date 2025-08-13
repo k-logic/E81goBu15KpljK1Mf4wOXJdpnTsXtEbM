@@ -8,12 +8,17 @@ g++ -std=c++23 src/encoder.cpp -Iinclude -L./lib -ltensorflowlite `pkg-config --
 #### encoder CUDA
 ```
 g++ -std=c++23 src/encoder.cpp -I./include -I/usr/include/aarch64-linux-gnu -I/usr/local/cuda/include -L./lib -L/usr/lib/aarch64-linux-gnu -L/usr/local/cuda/lib64 -lnvinfer -lcudart `pkg-config --cflags --libs opencv4` -DUSE_TENSORRT -o encoder_app
+
+オプション「-Ofast」で高速化
 ```
 
 ### decoder
 ```
 g++ -std=c++23 src/decoder.cpp -Iinclude -L./lib -ltensorflowlite `pkg-config --cflags --libs opencv4` -Wl,-rpath=./lib -DUSE_TFLITE -o decoder_app
+
+オプション「-Ofast」で高速化
 ```
+
 
 #### decoder CUDA
 ```
