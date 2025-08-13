@@ -31,13 +31,6 @@ public:
         std::cout << "Width  : " << cap_.get(cv::CAP_PROP_FRAME_WIDTH)  << "\n";
         std::cout << "Height : " << cap_.get(cv::CAP_PROP_FRAME_HEIGHT) << "\n";
         std::cout << "FPS    : " << cap_.get(cv::CAP_PROP_FPS)          << "\n";
-
-        // ウォームアップ
-        cv::Mat dummy;
-        for (int i = 0; i < 10; ++i) {
-            cap_ >> dummy;
-            cv::waitKey(30);
-        }
     }
 
     // CHW形式のvectorで返す
