@@ -1,7 +1,6 @@
 #pragma once
 
 #define ASIO_STANDALONE
-#include <config.hpp>
 #include <asio/asio.hpp>
 #include <asio/awaitable.hpp>
 #include <asio/use_awaitable.hpp>
@@ -62,7 +61,7 @@ private:
         int fd = socket_->native_handle();
 
         // 超低遅延向け：バッファを小さく
-        int sndbuf = config::UDP_SO_SNDBUF;
+        int sndbuf = 64 * 1024;  // 64KB
         if (setsockopt(fd, SOL_SOCKET, SO_SNDBUF, &sndbuf, sizeof(sndbuf)) < 0) {
             perror("setsockopt(SO_SNDBUF) failed");
         } else {

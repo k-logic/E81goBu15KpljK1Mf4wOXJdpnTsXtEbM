@@ -24,6 +24,4 @@ namespace config {
     constexpr int ENCODER_OUT_H = 45;  // エンコーダー出力の高さ
     constexpr int CHUNK_PIXEL = 80;
     constexpr int FRAME_FPS = 60;
-    constexpr int UDP_SO_SNDBUF = 64 * 1024;
-    constexpr int UDP_SO_RCVBUF = 64 * 1024;
 }
