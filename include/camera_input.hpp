@@ -9,25 +9,24 @@
 class CameraInput {
 private:
     cv::VideoCapture cap_;
-    int width_, height_, fps_, channels_;
+    int width_, height_, fps_;
 
 public:
-    CameraInput(const std::string& camera_source = "/dev/video0", int width = 640, int height = 480, int fps = 30)
+    CameraInput(const std::string& source, int width, int height, int fps)
         : width_(width), height_(height), fps_(fps)
     {
-        //cap_.open(camera_source);
-        cap_.open(camera_source, cv::CAP_V4L2);
+        cap_.open(source, cv::CAP_V4L2);
         if (!cap_.isOpened()) {
-            throw std::runtime_error("カメラを開けませんでした。");
+            throw std::runtime_error("カメラを開けませんでした");
         }
-        
+
         // MJPGに設定
         cap_.set(cv::CAP_PROP_FOURCC, cv::VideoWriter::fourcc('M', 'J', 'P', 'G'));
-
         cap_.set(cv::CAP_PROP_FRAME_WIDTH, width_);
         cap_.set(cv::CAP_PROP_FRAME_HEIGHT, height_);
         cap_.set(cv::CAP_PROP_FPS, fps_);
         cap_.set(cv::CAP_PROP_BUFFERSIZE, 1);
+
         std::cout << "==== Camera Settings ====\n";
         std::cout << "Width  : " << cap_.get(cv::CAP_PROP_FRAME_WIDTH)  << "\n";
         std::cout << "Height : " << cap_.get(cv::CAP_PROP_FRAME_HEIGHT) << "\n";
@@ -41,47 +40,24 @@ public:
         }
     }
 
-    // フレーム（cv::Mat）で取り出す
-    cv::Mat get_raw_frame() {
+    // CHW形式のvectorで返す
+    std::vector<float> get_frame_chw() {
         cv::Mat frame;
         cap_ >> frame;
-        if (frame.empty()) {
-            throw std::runtime_error("フレームが取得できませんでした。");
-        }
-        return frame;
-    }
+        if (frame.empty()) return {};
 
-    // CHW形式のフレームで取り出す
-    std::vector<float> get_frame_chw() {
-        cv::Mat frame = get_raw_frame();
-
-        int channels = frame.channels(); 
         cv::resize(frame, frame, cv::Size(width_, height_));
         frame.convertTo(frame, CV_32F, 1.0 / 255.0);
 
-        return bgr_to_chw(frame);
-    }
+        std::vector<cv::Mat> channels(3);
+        cv::split(frame, channels);
 
-    std::vector<float> bgr_to_chw(const cv::Mat& frame) {
-        int height = frame.rows;
-        int width = frame.cols;
-    
-        std::vector<float> chw(3 * height * width);
-        // OpenCVのframeはBGR順 → RGB順に入れ替えてCHWに格納
-        for (int h = 0; h < height; ++h) {
-            for (int w = 0; w < width; ++w) {
-                const cv::Vec3f& pixel = frame.at<cv::Vec3f>(h, w);
-                // RGB の順で格納
-                chw[0 * height * width + h * width + w] = pixel[0]; // R
-                chw[1 * height * width + h * width + w] = pixel[1]; // G
-                chw[2 * height * width + h * width + w] = pixel[2]; // B
-            }
-        }
-  
+        size_t hw = width_ * height_;
+        std::vector<float> chw(hw * 3);
+        std::memcpy(chw.data(),        channels[0].data, hw * sizeof(float)); // B
+        std::memcpy(chw.data() + hw,   channels[1].data, hw * sizeof(float)); // G
+        std::memcpy(chw.data() + hw*2, channels[2].data, hw * sizeof(float)); // R
+
         return chw;
     }
-
-    int width() const { return width_; }
-    int height() const { return height_; }
-    int fps() const { return fps_; }
 };
