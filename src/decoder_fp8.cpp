@@ -54,7 +54,7 @@ static uint32_t current_frame_id = 0;
 
 // グローバルまたはmainの外で固定バッファを持つ
 static std::vector<float> hwc(ENCODER_OUT_C * ENCODER_OUT_H * ENCODER_OUT_W);
-static std::vector<float> decoded(IMAGE_C * IMAGE_H * IMAGE_W);
+static std::vector<float> decoded(ENCODER_IN_C * ENCODER_IN_H * ENCODER_IN_W);
 
 // UDP受信処理
 void on_receive(const udp::endpoint& sender, const std::vector<uint8_t>& packet, IModelExecutor& decoder_model) {
@@ -96,8 +96,8 @@ void on_receive(const udp::endpoint& sender, const std::vector<uint8_t>& packet,
             decoder_model.run(hwc, decoded);
 
             // 表示
-            //image_display::display_decoded_image_chw(decoded.data(), IMAGE_C, IMAGE_H, IMAGE_W);
-            image_display::enqueue_frame_chw(decoded.data(), IMAGE_C, IMAGE_H, IMAGE_W);
+            //image_display::display_decoded_image_chw(decoded.data(), ENCODER_IN_C, ENCODER_IN_H, ENCODER_IN_W);
+            image_display::enqueue_frame_chw(decoded.data(), ENCODER_IN_C, ENCODER_IN_H, ENCODER_IN_W);
 
             // 新フレーム用に初期化
             current_frame_id = parsed.header.frame_id;
