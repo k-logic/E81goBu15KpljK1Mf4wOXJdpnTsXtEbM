@@ -26,28 +26,37 @@ static cv::Mat hwc_u8;
 inline void display_loop() {
     using clock = std::chrono::high_resolution_clock;
     auto last_time = clock::now();
-
     while (running) {
         Frame f;
+        bool has_frame = false;
+
         {
             std::unique_lock lk(queue_mutex);
-            queue_cv.wait(lk, [] { return !frame_queue.empty() || !running; });
+            // 30ms以内にフレーム到着 or 終了
+            queue_cv.wait_for(lk, std::chrono::milliseconds(30), [] { return !frame_queue.empty() || !running; });
+
             if (!running) break;
-            f = std::move(frame_queue.front());
-            frame_queue.pop();
+
+            if (!frame_queue.empty()) {
+                f = std::move(frame_queue.front());
+                frame_queue.pop();
+                has_frame = true;
+            }
         }
+        if (has_frame) {
+            // FPS計算
+            auto now = clock::now();
+            float fps = 1000.0f / std::chrono::duration<float, std::milli>(now - last_time).count();
+            last_time = now;
 
-        // FPS計算
-        auto now = clock::now();
-        float fps = 1000.0f / std::chrono::duration<float, std::milli>(now - last_time).count();
-        last_time = now;
+            // FPS表示
+            cv::putText(f.mat, cv::format("FPS: %.1f", fps),
+                        {10, 30}, cv::FONT_HERSHEY_SIMPLEX, 0.8,
+                        {0,255,0}, 2, cv::LINE_AA);
 
-        // FPS描画（ゼロコピーでも直接上書き可能）
-        cv::putText(f.mat, cv::format("FPS: %.1f", fps),
-                    {10, 30}, cv::FONT_HERSHEY_SIMPLEX, 0.8,
-                    {0,255,0}, 2, cv::LINE_AA);
-
-        cv::imshow("Decoded", f.mat);
+            cv::imshow("Decoded", f.mat);
+        }
+        // ウィンドウイベント処理（描画の有無に関わらず呼ぶ）
         cv::waitKey(1);
     }
 }
