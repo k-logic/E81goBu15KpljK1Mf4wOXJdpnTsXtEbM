@@ -142,4 +142,110 @@ inline void reconstruct_from_chunks_hwc(
     }
 }
 
+
+inline void chunk_by_tiles_hwc(
+    const std::vector<float>& hwc,       // 入力 HWC 配列
+    int c,                               // チャンネル数
+    int h,                               // 高さ
+    int w,                               // 幅
+    int tile_w,                          // タイル幅（ピクセル単位）
+    int tile_h,                          // タイル高さ（ピクセル単位）
+    std::vector<std::vector<float>>& chunks // 出力チャンク配列（再利用）
+) {
+    if (c <= 0 || h <= 0 || w <= 0 || tile_w <= 0 || tile_h <= 0) {
+        throw std::invalid_argument("Invalid argument");
+    }
+
+    const size_t expected_size = static_cast<size_t>(h) * w * c;
+    if (hwc.size() != expected_size) {
+        throw std::invalid_argument("hwc size mismatch");
+    }
+
+    const int tiles_x = (w + tile_w - 1) / tile_w;
+    const int tiles_y = (h + tile_h - 1) / tile_h;
+    chunks.clear();
+    chunks.reserve(tiles_x * tiles_y);
+
+    const float* base = hwc.data();
+
+    for (int ty = 0; ty < tiles_y; ++ty) {
+        for (int tx = 0; tx < tiles_x; ++tx) {
+            int start_x = tx * tile_w;
+            int start_y = ty * tile_h;
+            int end_x   = std::min(start_x + tile_w, w);
+            int end_y   = std::min(start_y + tile_h, h);
+
+            // タイル内のピクセルを収集
+            std::vector<float> chunk;
+            chunk.reserve((end_y - start_y) * (end_x - start_x) * c);
+
+            for (int y = start_y; y < end_y; ++y) {
+                const float* row_ptr = base + (y * w * c);
+                for (int x = start_x; x < end_x; ++x) {
+                    const float* pixel_ptr = row_ptr + (x * c);
+                    chunk.insert(chunk.end(), pixel_ptr, pixel_ptr + c);
+                }
+            }
+            chunks.push_back(std::move(chunk));
+        }
+    }
+}
+
+
+inline void reconstruct_from_tiles_hwc(
+    const std::vector<std::vector<float>>& chunks, // タイルごとのデータ
+    const std::vector<bool>& received_flags,       // タイル到着フラグ
+    float* hwc_data,                               // 出力HWCバッファ
+    int c, int h, int w,                           // チャンネル数, 高さ, 幅
+    int tile_w, int tile_h                         // タイル幅・高さ（ピクセル単位）
+) {
+    const int tiles_x = (w + tile_w - 1) / tile_w;  // 横方向タイル数
+    const int tiles_y = (h + tile_h - 1) / tile_h;  // 縦方向タイル数
+    const int expected_tile_count = tiles_x * tiles_y;
+
+    if (chunks.size() != static_cast<size_t>(expected_tile_count) ||
+        received_flags.size() != static_cast<size_t>(expected_tile_count)) {
+        std::cerr << "[WARN] Tile count mismatch: expected "
+                  << expected_tile_count
+                  << " but got chunks=" << chunks.size()
+                  << ", flags=" << received_flags.size()
+                  << " — missing tiles will be filled black.\n";
+    }
+
+    // 出力バッファを黒（0.0f）で初期化
+    std::fill(hwc_data, hwc_data + static_cast<size_t>(h) * w * c, 0);
+
+    for (int ty = 0; ty < tiles_y; ++ty) {
+        for (int tx = 0; tx < tiles_x; ++tx) {
+            int tile_index = ty * tiles_x + tx;
+
+            if (tile_index >= static_cast<int>(chunks.size()) ||
+                tile_index >= static_cast<int>(received_flags.size()) ||
+                !received_flags[tile_index]) {
+                // 欠損タイルはスキップ（黒のまま）
+                continue;
+            }
+
+            const auto& tile = chunks[tile_index];
+            int tile_pixels_x = std::min(tile_w, w - tx * tile_w);
+            int tile_pixels_y = std::min(tile_h, h - ty * tile_h);
+
+            // タイルを出力バッファにコピー
+            for (int py = 0; py < tile_pixels_y; ++py) {
+                for (int px = 0; px < tile_pixels_x; ++px) {
+                    int global_x = tx * tile_w + px;
+                    int global_y = ty * tile_h + py;
+                    size_t dst_index = (static_cast<size_t>(global_y) * w + global_x) * c;
+                    size_t src_index = (static_cast<size_t>(py) * tile_pixels_x + px) * c;
+
+                    for (int ch = 0; ch < c; ++ch) {
+                        hwc_data[dst_index + ch] = tile[src_index + ch];
+                    }
+                }
+            }
+        }
+    }
+}
+
+
 }
