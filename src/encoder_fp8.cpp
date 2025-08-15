@@ -14,6 +14,7 @@
 #include <debug_utils.hpp>
 #include <udp_sender.hpp>
 #include <camera_input2.hpp>
+#include <camera_input_gs.hpp>
 
 #if defined(USE_TENSORRT)
 #include <IModelExecutor.hpp>
@@ -59,7 +60,8 @@ int main() {
         UdpSender sender;
         sender.init_sync(io, CAMERA_HOST, CAMERA_PORT);
 
-        CameraInput camera(CAMERA_SOURCE, IMAGE_W, IMAGE_H, FRAME_FPS);
+        //CameraInput camera(CAMERA_SOURCE, IMAGE_W, IMAGE_H, FRAME_FPS);
+        CameraInputAppsink camera(CameraInputAppsink::SourceType::UVC, CAMERA_SOURCE, IMAGE_W, IMAGE_H, FRAME_FPS);
 
         std::unique_ptr<IModelExecutor> encoder_model;
 
