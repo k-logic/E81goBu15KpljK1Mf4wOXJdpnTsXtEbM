@@ -91,8 +91,27 @@ int main() {
             }
             
             encoder_model->run(input, encoded);
-             
-            chunker::chunk_by_pixels_hwc(encoded, ENCODER_OUT_C, ENCODER_OUT_H, ENCODER_OUT_W, CHUNK_PIXEL, chunks); 
+            
+            /* 
+            chunker::chunk_by_pixels_hwc(
+                encoded,
+                ENCODER_OUT_C,
+                ENCODER_OUT_H,
+                ENCODER_OUT_W,
+                CHUNK_PIXEL,
+                chunks
+            ); 
+            */
+            chunker::chunk_by_tiles_hwc(
+                encoded,
+                ENCODER_OUT_C,
+                ENCODER_OUT_H,
+                ENCODER_OUT_W,
+                CHUNK_PIXEL_W,
+                CHUNK_PIXEL_H,
+                chunks
+            );
+            
             send_chunks(io, sender, frame_id, chunks);
             frame_id++;
 

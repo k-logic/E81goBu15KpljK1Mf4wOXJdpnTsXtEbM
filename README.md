@@ -36,10 +36,17 @@ sudo apt install -y build-essential cmake git pkg-config \
 ```
 
 
-export my_project=$(pwd)
-
 ## Install opencv
 ```
+sudo apt update
+sudo apt install libopencv-dev
+```
+
+## Build Install opencv
+```
+cd my_project_dir
+export my_project=$(pwd)
+
 git clone https://github.com/opencv/opencv.git
 cd opencv
 mkdir build && cd build
@@ -65,6 +72,7 @@ cp -r ./install/lib/* $my_project/lib/opencv2/
 
 export PKG_CONFIG_PATH=$my_project/lib/opencv2/pkgconfig:$PKG_CONFIG_PATH
 ```
+
 
 ## Install bazel
 ```

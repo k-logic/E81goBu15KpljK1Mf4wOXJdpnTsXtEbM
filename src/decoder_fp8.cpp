@@ -71,7 +71,26 @@ void on_receive(const udp::endpoint& sender, const std::vector<uint8_t>& packet,
             }
 
             // 復元
-            chunker::reconstruct_from_chunks_hwc(current_frame.chunks, hwc.data(), ENCODER_OUT_C, ENCODER_OUT_H, ENCODER_OUT_W);
+            /*
+            chunker::reconstruct_from_chunks_hwc(
+                current_frame.chunks,
+                hwc.data(),
+                ENCODER_OUT_C,
+                ENCODER_OUT_H,
+                ENCODER_OUT_W
+            );
+            */
+            
+            chunker::reconstruct_from_tiles_hwc(
+                current_frame.chunks,
+                current_frame.received_flags,
+                hwc.data(),
+                ENCODER_OUT_C,
+                ENCODER_OUT_H,
+                ENCODER_OUT_W,
+                CHUNK_PIXEL_W,
+                CHUNK_PIXEL_H,
+            );
 
             // デコード
             decoder_model.run(hwc, decoded);
