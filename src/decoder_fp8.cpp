@@ -63,21 +63,13 @@ void on_receive(const udp::endpoint& sender, const std::vector<uint8_t>& packet,
 
         // 新しいフレームが来たら現フレームを表示
         if (current_frame_id != UINT32_MAX && parsed.header.frame_id != current_frame_id) {
-            // 欠損黒埋め
-            for (int i = 0; i < current_frame.chunk_total; ++i) {
-                if (!current_frame.received_flags[i]) {
-                    std::fill(current_frame.chunks[i].begin(), current_frame.chunks[i].end(), 0.0f);
-                }
-            }
-
-            // 復元
             /*
             chunker::reconstruct_from_chunks_hwc(
                 current_frame.chunks,
                 hwc.data(),
-                ENCODER_OUT_C,
-                ENCODER_OUT_H,
-                ENCODER_OUT_W
+                DECODER_IN_C,
+                DECODER_IN_H,
+                DECODER_IN_W
             );
             */
             
@@ -85,9 +77,9 @@ void on_receive(const udp::endpoint& sender, const std::vector<uint8_t>& packet,
                 current_frame.chunks,
                 current_frame.received_flags,
                 hwc.data(),
-                ENCODER_OUT_C,
-                ENCODER_OUT_H,
-                ENCODER_OUT_W,
+                DECODER_IN_C,
+                DECODER_IN_H,
+                DECODER_IN_W,
                 CHUNK_PIXEL_W,
                 CHUNK_PIXEL_H,
             );
