@@ -21,19 +21,19 @@ namespace config {
     constexpr int INPUT_H = 720;
     constexpr int INPUT_FPS = 30;
 
-    constexpr int ENCODER_IN_C = 3;  　// エンコーダー入力のチャンネル
-    constexpr int ENCODER_IN_W = 1280; // エンコーダー入力の幅
-    constexpr int ENCODER_IN_H = 720;  // エンコーダー入力の高さ
-    constexpr int ENCODER_OUT_C = 16;  // エンコーダー出力のチャンネル
-    constexpr int ENCODER_OUT_W = 80;  // エンコーダー出力の幅
-    constexpr int ENCODER_OUT_H = 45;  // エンコーダー出力の高さ
+    constexpr int ENCODER_IN_C = 3;      // エンコーダー入力のチャンネル
+    constexpr int ENCODER_IN_W = 1280;   // エンコーダー入力の幅
+    constexpr int ENCODER_IN_H = 720;    // エンコーダー入力の高さ
+    constexpr int ENCODER_OUT_C = 16;    // エンコーダー出力のチャンネル
+    constexpr int ENCODER_OUT_W = 80;    // エンコーダー出力の幅
+    constexpr int ENCODER_OUT_H = 45;    // エンコーダー出力の高さ
 
-    constexpr int DECODER_IN_C = 16;  　// デコーダー入力のチャンネル
-    constexpr int DECODER_IN_W = 80; // デコーダー入力の幅
-    constexpr int DECODER_IN_H = 45;  // デコーダー入力の高さ
-    constexpr int DECODER_OUT_C = 3;  // デコーダー出力のチャンネル
+    constexpr int DECODER_IN_C = 16;     // デコーダー入力のチャンネル
+    constexpr int DECODER_IN_W = 80;     // デコーダー入力の幅
+    constexpr int DECODER_IN_H = 45;     // デコーダー入力の高さ
+    constexpr int DECODER_OUT_C = 3;     // デコーダー出力のチャンネル
     constexpr int DECODER_OUT_W = 1280;  // デコーダー出力の幅
-    constexpr int DECODER_OUT_H = 720;  // デコーダー出力の高さ
+    constexpr int DECODER_OUT_H = 720;   // デコーダー出力の高さ
 
     constexpr int CHUNK_PIXEL = 88;
     constexpr int CHUNK_PIXEL_H = 8;
