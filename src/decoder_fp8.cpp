@@ -88,8 +88,8 @@ void on_receive(const udp::endpoint& sender, const std::vector<uint8_t>& packet,
             decoder_model.run(hwc, decoded);
 
             // 表示
-            //image_display::display_decoded_image_chw(decoded.data(), ENCODER_IN_C, ENCODER_IN_H, ENCODER_IN_W);
-            image_display::enqueue_frame_chw(decoded.data(), ENCODER_IN_C, ENCODER_IN_H, ENCODER_IN_W);
+            //image_display::display_decoded_image_chw(decoded.data(), DECODER_OUT_C, DECODER_OUT_H, DECODER_OUT_W);
+            image_display::enqueue_frame_chw(decoded.data(), DECODER_OUT_C, DECODER_OUT_H, DECODER_OUT_W);
 
             // 新フレーム用に初期化
             current_frame_id = parsed.header.frame_id;
