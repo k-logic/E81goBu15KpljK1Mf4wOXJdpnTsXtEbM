@@ -53,8 +53,8 @@ static FrameBuffer current_frame;
 static uint32_t current_frame_id = 0;
 
 // グローバルまたはmainの外で固定バッファを持つ
-static std::vector<float> hwc(ENCODER_OUT_C * ENCODER_OUT_H * ENCODER_OUT_W);
-static std::vector<float> decoded(ENCODER_IN_C * ENCODER_IN_H * ENCODER_IN_W);
+static std::vector<float> hwc(DECODER_IN_C * DECODER_IN_H * DECODER_IN_W);
+static std::vector<float> decoded(DECODER_OUT_C * DECODER_OUT_H * DECODER_OUT_W);
 
 // UDP受信処理
 void on_receive(const udp::endpoint& sender, const std::vector<uint8_t>& packet, IModelExecutor& decoder_model) {
@@ -81,7 +81,7 @@ void on_receive(const udp::endpoint& sender, const std::vector<uint8_t>& packet,
                 DECODER_IN_H,
                 DECODER_IN_W,
                 CHUNK_PIXEL_W,
-                CHUNK_PIXEL_H,
+                CHUNK_PIXEL_H
             );
 
             // デコード
@@ -95,7 +95,7 @@ void on_receive(const udp::endpoint& sender, const std::vector<uint8_t>& packet,
             current_frame_id = parsed.header.frame_id;
             current_frame.chunk_total = parsed.header.chunk_total;
             current_frame.received_count = 0;
-            current_frame.chunks.assign(current_frame.chunk_total, std::vector<float>(CHUNK_PIXEL * ENCODER_OUT_C, 0.0f));
+            current_frame.chunks.assign(current_frame.chunk_total, std::vector<float>(CHUNK_PIXEL * DECODER_IN_C, 0.0f));
             current_frame.received_flags.assign(current_frame.chunk_total, false);
         }
 
@@ -104,7 +104,7 @@ void on_receive(const udp::endpoint& sender, const std::vector<uint8_t>& packet,
             current_frame_id = parsed.header.frame_id;
             current_frame.chunk_total = parsed.header.chunk_total;
             current_frame.received_count = 0;
-            current_frame.chunks.assign(current_frame.chunk_total, std::vector<float>(CHUNK_PIXEL * ENCODER_OUT_C, 0.0f));
+            current_frame.chunks.assign(current_frame.chunk_total, std::vector<float>(CHUNK_PIXEL * DECODER_IN_C, 0.0f));
             current_frame.received_flags.assign(current_frame.chunk_total, false);
         }
 

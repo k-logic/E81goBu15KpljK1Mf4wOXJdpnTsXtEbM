@@ -16,7 +16,7 @@ namespace config {
     constexpr uint16_t CAMERA_PORT     = 8004;
     constexpr size_t MAX_SAFE_UDP_SIZE = 1500;
 
-    constexpr char* INPUT_SOURCE = "/dev/video0";
+    constexpr const char* INPUT_SOURCE = "/dev/video0";
     constexpr int INPUT_W = 1280;
     constexpr int INPUT_H = 720;
     constexpr int INPUT_FPS = 30;
