@@ -54,7 +54,7 @@ static uint32_t current_frame_id = 0;
 
 // グローバルまたはmainの外で固定バッファを持つ
 static std::vector<float> hwc(ENCODER_OUT_C * ENCODER_OUT_H * ENCODER_OUT_W);
-static std::vector<float> decoded(IMAGE_C * IMAGE_H * IMAGE_W);
+static std::vector<float> decoded(ENCODER_IN_C * ENCODER_IN_H * ENCODER_IN_W);
 
 // UDP受信処理
 void on_receive(const udp::endpoint& sender, const std::vector<uint8_t>& packet, IModelExecutor& decoder_model) {
@@ -63,21 +63,13 @@ void on_receive(const udp::endpoint& sender, const std::vector<uint8_t>& packet,
 
         // 新しいフレームが来たら現フレームを表示
         if (current_frame_id != UINT32_MAX && parsed.header.frame_id != current_frame_id) {
-            // 欠損黒埋め
-            for (int i = 0; i < current_frame.chunk_total; ++i) {
-                if (!current_frame.received_flags[i]) {
-                    std::fill(current_frame.chunks[i].begin(), current_frame.chunks[i].end(), 0.0f);
-                }
-            }
-
-            // 復元
             /*
             chunker::reconstruct_from_chunks_hwc(
                 current_frame.chunks,
                 hwc.data(),
-                ENCODER_OUT_C,
-                ENCODER_OUT_H,
-                ENCODER_OUT_W
+                DECODER_IN_C,
+                DECODER_IN_H,
+                DECODER_IN_W
             );
             */
             
@@ -85,9 +77,9 @@ void on_receive(const udp::endpoint& sender, const std::vector<uint8_t>& packet,
                 current_frame.chunks,
                 current_frame.received_flags,
                 hwc.data(),
-                ENCODER_OUT_C,
-                ENCODER_OUT_H,
-                ENCODER_OUT_W,
+                DECODER_IN_C,
+                DECODER_IN_H,
+                DECODER_IN_W,
                 CHUNK_PIXEL_W,
                 CHUNK_PIXEL_H,
             );
@@ -96,8 +88,8 @@ void on_receive(const udp::endpoint& sender, const std::vector<uint8_t>& packet,
             decoder_model.run(hwc, decoded);
 
             // 表示
-            //image_display::display_decoded_image_chw(decoded.data(), IMAGE_C, IMAGE_H, IMAGE_W);
-            image_display::enqueue_frame_chw(decoded.data(), IMAGE_C, IMAGE_H, IMAGE_W);
+            //image_display::display_decoded_image_chw(decoded.data(), DECODER_OUT_C, DECODER_OUT_H, DECODER_OUT_W);
+            image_display::enqueue_frame_chw(decoded.data(), DECODER_OUT_C, DECODER_OUT_H, DECODER_OUT_W);
 
             // 新フレーム用に初期化
             current_frame_id = parsed.header.frame_id;
@@ -140,7 +132,7 @@ asio::awaitable<void> run_server(UdpServer& server, IModelExecutor& decoder_mode
 
 int main() {
     asio::io_context io;
-    UdpServer server(io, 8004);
+    UdpServer server(io, CAMERA_PORT);
 
     std::unique_ptr<IModelExecutor> decoder_model;
     

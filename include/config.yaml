@@ -1,0 +1,50 @@
+network:
+  max_udp_size: 1500
+
+  encoder:
+    dst_ip: "192.168.0.20"
+    dst_port: 8004
+    udp:
+      send_buffer: 131072   # 128KB
+
+  decoder:
+    listen_ip: "0.0.0.0"
+    listen_port: 8004
+    udp:
+      recv_buffer: 131072   # 128KB
+
+camera:
+  source: "/dev/video0"
+  width: 1280
+  height: 720
+  fps: 30
+
+model:
+  encoder_path: "models/encoder13_fp16_SP.engine"
+  decoder_path: "models/decoder13_fp16_SP.engine"
+  encoder:
+    in_c: 3
+    in_w: 1280
+    in_h: 720
+    out_c: 16
+    out_w: 80
+    out_h: 45
+  decoder:
+    in_c: 16
+    in_w: 80
+    in_h: 45
+    out_c: 3
+    out_w: 1280
+    out_h: 720
+
+chunk:
+  pixel: 88
+  pixel_h: 8
+  pixel_w: 10
+
+pipeline:
+  default: >
+    v4l2src device=/dev/video0 io-mode=2 !
+    video/x-raw,width=1280,height=720,framerate=60/1 !
+    videoconvert ! video/x-raw,format=BGR !
+    appsink name=sink max-buffers=1 drop=true sync=false
