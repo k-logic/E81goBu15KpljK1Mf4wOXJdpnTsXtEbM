@@ -36,7 +36,6 @@ void send_chunks(asio::io_context& io, UdpSender& sender, int frame_id, const st
     std::shuffle(indices.begin(), indices.end(), rng);
 
     for (size_t i : indices) {
-        std::cout << fmt::format("ーーーーーーーーーーーーーーーーーーーーーーーーー\n");
         std::vector<uint8_t> uint8_data = other_utils::float32_to_fp8_bytes(chunks[i]);
         packet::packet_header header{
             static_cast<uint16_t>(frame_id),
@@ -49,7 +48,8 @@ void send_chunks(asio::io_context& io, UdpSender& sender, int frame_id, const st
             std::cerr << fmt::format("Packet too large ({} bytes), skipping.\n", packet.size());
             continue;
         }
-        std::cout << fmt::format("packet size: {} bytes for frame id: {} (chunk_id: {})\n", packet.size(), frame_id, i);
+
+        std::cout << fmt::format("frame {} chunk {} size: {} bytes\n", frame_id, i, packet.size());
         sender.send_sync(packet);
     }
 }
@@ -61,6 +61,7 @@ int main() {
         sender.init_sync(io, CAMERA_HOST, CAMERA_PORT);
 
         //CameraInput camera(INPUT_SOURCE, INPUT_W, INPUT_H, INPUT_FPS);
+        // CSI:UVC
         CameraInputAppsink camera(CameraInputAppsink::SourceType::UVC, INPUT_SOURCE, INPUT_W, INPUT_H, INPUT_FPS);
 
         std::unique_ptr<IModelExecutor> encoder_model;
@@ -82,18 +83,29 @@ int main() {
         std::vector<float> encoded;
         std::vector<std::vector<float>> chunks;
         int frame_id = 0;
+
         while (true) {
-            // キー入力
             int key = cv::waitKey(1);
             if (key == 'q') break;
+            
+            // ===== 時間計測用 =====
+            auto t0 = std::chrono::high_resolution_clock::now();
+            auto t_prev = t0;
+
+            // 1. カメラ取得
             std::vector<float> input = camera.get_frame_chw();
+            auto t1 = std::chrono::high_resolution_clock::now();
+            
             if (input.empty()) {
                 std::cerr << "[ERROR] Failed to capture frame.\n";
                 continue;
             }
             
+            // 2. 推論
             encoder_model->run(input, encoded);
+            auto t2 = std::chrono::high_resolution_clock::now();
             
+            // 3. チャンク分割
             /* 
             chunker::chunk_by_pixels_hwc(
                 encoded,
@@ -113,13 +125,23 @@ int main() {
                 CHUNK_PIXEL_H,
                 chunks
             );
+            auto t3 = std::chrono::high_resolution_clock::now();
             
+            // 4. UDP送信
             send_chunks(io, sender, frame_id, chunks);
-            frame_id++;
+            auto t4 = std::chrono::high_resolution_clock::now();
+            
+            // ===== 各区間の時間（ms）を計算 =====
+            auto ms_getframe = std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t_prev).count();
+            auto ms_encode   = std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count();
+            auto ms_chunk    = std::chrono::duration_cast<std::chrono::milliseconds>(t3 - t2).count();
+            auto ms_send     = std::chrono::duration_cast<std::chrono::milliseconds>(t4 - t3).count();
+            auto ms_total    = std::chrono::duration_cast<std::chrono::milliseconds>(t4 - t0).count();
 
-            std::cout << fmt::format("Encoded size: {} byte\n", encoded.size() * 4);
-            std::cout << fmt::format("Output size: {} byte\n", encoded.size());   
-            std::cout << fmt::format("Total Chunk: {}\n", chunks.size()); 
+            fmt::print("[TIME] get_frame: {} ms | encode: {} ms | chunk: {} ms | send: {} ms | total: {} ms\n",
+                       ms_getframe, ms_encode, ms_chunk, ms_send, ms_total);
+            
+            frame_id++;
         }
         return 0;
 
