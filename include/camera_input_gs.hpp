@@ -39,25 +39,27 @@ private:
                                              const std::string& device,
                                              int width, int height, int fps)
     {
-        // appsinkはBGRに合わせる（OpenCVと相性◎）
-        const std::string appsink_tail =
-            "video/x-raw,format=BGR ! appsink name=sink max-buffers=1 drop=true sync=false";
-
         if (type == SourceType::UVC) {
             // 低遅延：io-mode=2(mmap), バッファをためない, MJPEGならjpegdecを挟む
             // デバイスがMJPEGを出せない場合は 'image/jpeg' 部分を削って 'videoconvert' だけでもOK
             return
                 "v4l2src device=" + device + " io-mode=2 ! "
                 "image/jpeg,framerate=" + std::to_string(fps) + "/1,width=" + std::to_string(width) + ",height=" + std::to_string(height) + " ! "
-                "jpegdec ! videoconvert ! " + appsink_tail;
+                "jpegdec ! videoconvert ! "
+                "video/x-raw,format=BGR ! "
+                "appsink name=sink max-buffers=1 drop=true sync=false";
         } else {
             // Jetson CSI（IMX219/IMX477など）：nvarguscamerasrc → NVMM → nvvidconv → BGR
             return
                 "nvarguscamerasrc ! "
+                "queue ! "
                 "video/x-raw(memory:NVMM),width=" + std::to_string(width) +
                 ",height=" + std::to_string(height) +
                 ",framerate=" + std::to_string(fps) + "/1 ! "
-                "nvvidconv ! " + appsink_tail;
+                "nvvidconv ! video/x-raw,format=BGRx ! "
+                "videoconvert ! "
+                "video/x-raw,format=BGR ! "
+                "appsink name=sink max-buffers=1 drop=true sync=false";
         }
     }
 
