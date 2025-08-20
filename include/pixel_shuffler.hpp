@@ -4,7 +4,6 @@
 #include <algorithm>
 #include <random>
 #include <cstdint>
-#include <PoissonGenerator.h>
 
 class PixelShuffler {
 public:
@@ -16,7 +15,10 @@ public:
             throw std::invalid_argument("num_pixels must be > 1");
         }
 
-        step = num_pixels / 2 + 1;
+        // stepが指定されていない場合は、適当に num_pixels/2+1 にする
+        if (step == -1) {
+            step = num_pixels / 2 + 1;
+        }
 
         // stepとnum_pixelsが互いに素であることを確認
         if (std::gcd(step, num_pixels) != 1) {
