@@ -31,14 +31,6 @@
 using namespace config;
 
 void send_chunks(asio::io_context& io, UdpSender& sender, int frame_id, const std::vector<std::vector<uint8_t>>& chunks, int encoded_size) {
-    /*
-    std::vector<size_t> indices(chunks.size());
-    std::iota(indices.begin(), indices.end(), 0);
-    static std::mt19937 rng(std::random_device{}());
-    std::shuffle(indices.begin(), indices.end(), rng);
-
-    for (size_t i : indices) {
-    */
     for (size_t i = 0; i < chunks.size(); ++i) {
         std::vector<uint8_t> uint8_data = chunks[i];
         packet::packet_header header{
