@@ -7,7 +7,6 @@
 namespace config {
     constexpr const char* ENCODER_PATH = MODEL_DIR "encoder13_fp16_SP.engine";
     constexpr const char* DECODER_PATH = MODEL_DIR "decoder13_fp16_SP.engine";
-    constexpr const char* IMAGE_PATH   = RESOURCE_DIR "8.jpg";
     //constexpr const char* CAMERA_HOST = "127.0.0.1";
     //constexpr const char* CAMERA_HOST = "10.211.55.11";
     //constexpr const char* CAMERA_HOST = "192.168.0.117";
@@ -38,8 +37,8 @@ namespace config {
     constexpr int CHUNK_PIXEL = 88;
     constexpr int CHUNK_PIXEL_H = 8;
     constexpr int CHUNK_PIXEL_W = 10;
-    constexpr int UDP_SO_SNDBUF = 64 * 1024;
-    constexpr int UDP_SO_RCVBUF = 64 * 1024;
+    constexpr int UDP_SO_SNDBUF = 128 * 1024;
+    constexpr int UDP_SO_RCVBUF = 128 * 1024;
     
     constexpr float FRAME_SKIP_THRESHOLD = 0.4f; 
 }
