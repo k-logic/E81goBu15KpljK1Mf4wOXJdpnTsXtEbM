@@ -187,11 +187,11 @@ inline void chunk_by_tiles_hwc(
 }
 
 inline void reconstruct_from_tiles_hwc(
-    const std::vector<std::vector<float>>& chunks, // タイルごとのデータ
-    const std::vector<bool>& received_flags,       // タイル到着フラグ
-    float* hwc_data,                               // 出力HWCバッファ
-    int c, int h, int w,                           // チャンネル数, 高さ, 幅
-    int tile_w, int tile_h                         // タイル幅・高さ（ピクセル単位）
+    const std::vector<std::vector<uint8_t>>& chunks, // タイルごとのデータ
+    const std::vector<bool>& received_flags,         // タイル到着フラグ
+    uint8_t* hwc_data,                               // 出力HWCバッファ
+    int c, int h, int w,                             // チャンネル数, 高さ, 幅
+    int tile_w, int tile_h                           // タイル幅・高さ（ピクセル単位）
 ) {
     const int tiles_x = (w + tile_w - 1) / tile_w;  // 横方向タイル数
     const int tiles_y = (h + tile_h - 1) / tile_h;  // 縦方向タイル数
@@ -206,7 +206,7 @@ inline void reconstruct_from_tiles_hwc(
                   << " — missing tiles will be filled black.\n";
     }
 
-    // 出力バッファを黒（0.0f）で初期化
+    // 出力バッファを黒 (0) で初期化
     std::fill(hwc_data, hwc_data + static_cast<size_t>(h) * w * c, 0);
 
     for (int ty = 0; ty < tiles_y; ++ty) {
@@ -240,6 +240,4 @@ inline void reconstruct_from_tiles_hwc(
         }
     }
 }
-
-
 }

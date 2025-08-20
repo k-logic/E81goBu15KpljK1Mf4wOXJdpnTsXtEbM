@@ -43,7 +43,7 @@ using namespace config;
 
 // 1フレーム分だけ保持するバッファ構造
 struct FrameBuffer {
-    std::vector<std::vector<float>> chunks; // 各チャンクのデータ
+    std::vector<std::vector<uint8_t>> chunks; // 各チャンクのデータ
     std::vector<bool> received_flags;       // 到着フラグ
     int received_count = 0;
     int chunk_total = 0;
@@ -53,7 +53,7 @@ static FrameBuffer current_frame;
 static uint32_t current_frame_id = 0;
 
 // グローバルまたはmainの外で固定バッファを持つ
-static std::vector<float> hwc(DECODER_IN_C * DECODER_IN_H * DECODER_IN_W);
+static std::vector<uint8_t> hwc(DECODER_IN_C * DECODER_IN_H * DECODER_IN_W);
 static std::vector<float> decoded(DECODER_OUT_C * DECODER_OUT_H * DECODER_OUT_W);
 
 // UDP受信処理
@@ -63,15 +63,9 @@ void on_receive(const udp::endpoint& sender, const std::vector<uint8_t>& packet,
 
         // 新しいフレームが来たら現フレームを表示
         if (current_frame_id != UINT32_MAX && parsed.header.frame_id != current_frame_id) {
-            /*
-            chunker::reconstruct_from_chunks_hwc(
-                current_frame.chunks,
-                hwc.data(),
-                DECODER_IN_C,
-                DECODER_IN_H,
-                DECODER_IN_W
-            );
-            */
+            // ===== 時間計測用 =====
+            auto t0 = std::chrono::high_resolution_clock::now();
+            auto t_prev = t0;
             
             chunker::reconstruct_from_tiles_hwc(
                 current_frame.chunks,
@@ -83,20 +77,35 @@ void on_receive(const udp::endpoint& sender, const std::vector<uint8_t>& packet,
                 CHUNK_PIXEL_W,
                 CHUNK_PIXEL_H
             );
+            auto t1 = std::chrono::high_resolution_clock::now();
+
+            std::vector<float> hwc_float32 = other_utils::fp8_to_float32(hwc);
 
             // デコード
-            decoder_model.run(hwc, decoded);
+            decoder_model.run(hwc_float32, decoded);
+            auto t2 = std::chrono::high_resolution_clock::now();
 
             // 表示
             //image_display::display_decoded_image_chw(decoded.data(), DECODER_OUT_C, DECODER_OUT_H, DECODER_OUT_W);
             image_display::enqueue_frame_chw(decoded.data(), DECODER_OUT_C, DECODER_OUT_H, DECODER_OUT_W);
+            auto t3 = std::chrono::high_resolution_clock::now();
 
             // 新フレーム用に初期化
             current_frame_id = parsed.header.frame_id;
             current_frame.chunk_total = parsed.header.chunk_total;
             current_frame.received_count = 0;
-            current_frame.chunks.assign(current_frame.chunk_total, std::vector<float>(CHUNK_PIXEL * DECODER_IN_C, 0.0f));
+            current_frame.chunks.assign(current_frame.chunk_total, std::vector<uint8_t>(CHUNK_PIXEL * DECODER_IN_C, 0.0f));
             current_frame.received_flags.assign(current_frame.chunk_total, false);
+
+             // ===== 各区間の時間（ms）を計算 =====
+            auto ms_chunk = std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t_prev).count();
+            auto ms_encode   = std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count();
+            auto ms_display  = std::chrono::duration_cast<std::chrono::milliseconds>(t3 - t2).count();
+            auto ms_total    = std::chrono::duration_cast<std::chrono::milliseconds>(t3 - t0).count();
+
+            fmt::print("[TIME] chunk: {} ms | decode: {} ms | display: {} ms | total: {} ms\n",
+                       ms_chunk, ms_encode, ms_display, ms_total);
+
         }
 
         // 初期化（初回または上の分岐後）
@@ -104,14 +113,14 @@ void on_receive(const udp::endpoint& sender, const std::vector<uint8_t>& packet,
             current_frame_id = parsed.header.frame_id;
             current_frame.chunk_total = parsed.header.chunk_total;
             current_frame.received_count = 0;
-            current_frame.chunks.assign(current_frame.chunk_total, std::vector<float>(CHUNK_PIXEL * DECODER_IN_C, 0.0f));
+            current_frame.chunks.assign(current_frame.chunk_total, std::vector<uint8_t>(CHUNK_PIXEL * DECODER_IN_C, 0.0f));
             current_frame.received_flags.assign(current_frame.chunk_total, false);
         }
 
         // チャンク格納
         if (parsed.header.chunk_id < current_frame.chunk_total &&
             !current_frame.received_flags[parsed.header.chunk_id]) {
-            current_frame.chunks[parsed.header.chunk_id] = other_utils::fp8_bytes_to_float32(parsed.compressed);
+            current_frame.chunks[parsed.header.chunk_id] = parsed.compressed;
             current_frame.received_flags[parsed.header.chunk_id] = true;
             current_frame.received_count++;
         }
