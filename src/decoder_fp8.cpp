@@ -25,7 +25,6 @@
 #include <debug_utils.hpp>
 #include <udp_server.hpp>
 #include <image_utils.hpp>
-#include <image_display.hpp>
 #include <image_display2.hpp>
 #include <pixel_shuffler.hpp>
 
@@ -112,7 +111,7 @@ void on_receive(const udp::endpoint& sender, const std::vector<uint8_t>& packet,
             auto t2 = std::chrono::high_resolution_clock::now();
 
             // 表示
-            image_display::display_decoded_image_chw(decoded.data(), DECODER_OUT_C, DECODER_OUT_H, DECODER_OUT_W);
+            //image_display::display_decoded_image_chw(decoded.data(), DECODER_OUT_C, DECODER_OUT_H, DECODER_OUT_W);
             image_display::enqueue_frame_chw(decoded.data(), DECODER_OUT_C, DECODER_OUT_H, DECODER_OUT_W);
             auto t3 = std::chrono::high_resolution_clock::now();
 
