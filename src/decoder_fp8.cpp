@@ -50,12 +50,22 @@ struct FrameBuffer {
     int chunk_total = 0;
 };
 
+PixelShuffler shuffler(DECODER_IN_H, DECODER_IN_W, DECODER_IN_C);
+std::vector<uint8_t> hwc_restored;
+
 static FrameBuffer current_frame;
 static uint32_t current_frame_id = 0;
 
 // グローバルまたはmainの外で固定バッファを持つ
 static std::vector<uint8_t> hwc(DECODER_IN_C * DECODER_IN_H * DECODER_IN_W);
 static std::vector<float> decoded(DECODER_OUT_C * DECODER_OUT_H * DECODER_OUT_W);
+
+bool should_skip_frame(const FrameBuffer& frame, float threshold = 0.4f) {
+    if (frame.chunk_total == 0) return true; // 異常系はスキップ
+    
+    float loss_ratio = 1.0f - (float)frame.received_count / frame.chunk_total;
+    return loss_ratio > threshold;
+}
 
 // UDP受信処理
 void on_receive(const udp::endpoint& sender, const std::vector<uint8_t>& packet, IModelExecutor& decoder_model) {
@@ -65,9 +75,7 @@ void on_receive(const udp::endpoint& sender, const std::vector<uint8_t>& packet,
         // 新しいフレームが来たら現フレームを表示
         if (current_frame_id != UINT32_MAX && parsed.header.frame_id != current_frame_id) {
             if (should_skip_frame(current_frame, FRAME_SKIP_THRESHOLD)) {
-                fmt::print("[INFO] Skip frame {} (loss {:.1f}%)\n",
-                   current_frame_id,
-                   100.0f * (1.0f - (float)current_frame.received_count / current_frame.chunk_total));
+                fmt::print("[INFO] Skip frame {} (loss {:.1f}%)\n", current_frame_id, 100.0f * (1.0f - (float)current_frame.received_count / current_frame.chunk_total));
 
                 // 次のフレームに切り替え
                 current_frame_id = parsed.header.frame_id;
@@ -95,8 +103,6 @@ void on_receive(const udp::endpoint& sender, const std::vector<uint8_t>& packet,
             );
             auto t1 = std::chrono::high_resolution_clock::now();
 
-            PixelShuffler shuffler(DECODER_IN_H, DECODER_IN_W, DECODER_IN_C);
-            std::vector<uint8_t> hwc_restored;
             shuffler.inverse(hwc, hwc_restored);
 
             std::vector<float> hwc_float32 = other_utils::fp8_to_float32(hwc_restored);
@@ -106,7 +112,7 @@ void on_receive(const udp::endpoint& sender, const std::vector<uint8_t>& packet,
             auto t2 = std::chrono::high_resolution_clock::now();
 
             // 表示
-            //image_display::display_decoded_image_chw(decoded.data(), DECODER_OUT_C, DECODER_OUT_H, DECODER_OUT_W);
+            image_display::display_decoded_image_chw(decoded.data(), DECODER_OUT_C, DECODER_OUT_H, DECODER_OUT_W);
             image_display::enqueue_frame_chw(decoded.data(), DECODER_OUT_C, DECODER_OUT_H, DECODER_OUT_W);
             auto t3 = std::chrono::high_resolution_clock::now();
 
@@ -123,8 +129,7 @@ void on_receive(const udp::endpoint& sender, const std::vector<uint8_t>& packet,
             auto ms_display  = std::chrono::duration_cast<std::chrono::milliseconds>(t3 - t2).count();
             auto ms_total    = std::chrono::duration_cast<std::chrono::milliseconds>(t3 - t0).count();
 
-            fmt::print("[TIME] chunk: {} ms | decode: {} ms | display: {} ms | total: {} ms\n",
-                       ms_chunk, ms_encode, ms_display, ms_total);
+            fmt::print("[TIME] chunk: {} ms | decode: {} ms | display: {} ms | total: {} ms\n", ms_chunk, ms_encode, ms_display, ms_total);
 
         }
 
