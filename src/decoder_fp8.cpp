@@ -64,6 +64,21 @@ void on_receive(const udp::endpoint& sender, const std::vector<uint8_t>& packet,
 
         // 新しいフレームが来たら現フレームを表示
         if (current_frame_id != UINT32_MAX && parsed.header.frame_id != current_frame_id) {
+            if (should_skip_frame(current_frame, FRAME_SKIP_THRESHOLD)) {
+                fmt::print("[INFO] Skip frame {} (loss {:.1f}%)\n",
+                   current_frame_id,
+                   100.0f * (1.0f - (float)current_frame.received_count / current_frame.chunk_total));
+
+                // 次のフレームに切り替え
+                current_frame_id = parsed.header.frame_id;
+                current_frame.chunk_total = parsed.header.chunk_total;
+                current_frame.received_count = 0;
+                current_frame.chunks.assign(current_frame.chunk_total, std::vector<uint8_t>(CHUNK_PIXEL * DECODER_IN_C, 0));
+                current_frame.received_flags.assign(current_frame.chunk_total, false);
+
+                return; // デコード処理せずスキップ
+            }
+
             // ===== 時間計測用 =====
             auto t0 = std::chrono::high_resolution_clock::now();
             auto t_prev = t0;
@@ -80,7 +95,7 @@ void on_receive(const udp::endpoint& sender, const std::vector<uint8_t>& packet,
             );
             auto t1 = std::chrono::high_resolution_clock::now();
 
-            PixelShuffler shuffler(DECODER_IN_H, DECODER_IN_W, DECODER_IN_C, 1234);
+            PixelShuffler shuffler(DECODER_IN_H, DECODER_IN_W, DECODER_IN_C);
             std::vector<uint8_t> hwc_restored;
             shuffler.inverse(hwc, hwc_restored);
 

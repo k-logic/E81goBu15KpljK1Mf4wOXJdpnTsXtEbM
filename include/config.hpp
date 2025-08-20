@@ -40,4 +40,6 @@ namespace config {
     constexpr int CHUNK_PIXEL_W = 10;
     constexpr int UDP_SO_SNDBUF = 64 * 1024;
     constexpr int UDP_SO_RCVBUF = 64 * 1024;
+    
+    constexpr float FRAME_SKIP_THRESHOLD = 0.4f; 
 }

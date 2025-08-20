@@ -105,7 +105,7 @@ int main() {
             // float32->float8に量子化
             std::vector<uint8_t> encoded_fp8 = other_utils::float32_to_fp8(encoded);
 
-            PixelShuffler shuffler(ENCODER_OUT_H, ENCODER_OUT_W, ENCODER_OUT_C, 1234);
+            PixelShuffler shuffler(ENCODER_OUT_H, ENCODER_OUT_W, ENCODER_OUT_C);
             std::vector<uint8_t> encoded_fp8_shuf;
             shuffler.shuffle(encoded_fp8, encoded_fp8_shuf);
             
