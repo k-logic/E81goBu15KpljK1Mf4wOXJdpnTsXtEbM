@@ -10,7 +10,8 @@ struct packet_header {
     uint16_t frame_id;
     uint16_t chunk_id;
     uint16_t chunk_total;
-    uint16_t spare;
+    uint16_t data_len; 
+    //uint16_t spare;
 };
 
 // ========== データ付きパケット ==========
@@ -55,14 +56,14 @@ inline uint32_t read_u32_le(const uint8_t* p) {
 
 // ========== make_packet_u8 ==========
 inline std::vector<uint8_t> make_packet_u8(
-    const packet_header& header,
+    packet_header& header,
     const std::vector<uint8_t>& compressed
 ) {
     std::vector<uint8_t> packet;
     write_u16_le(packet, header.frame_id);
     write_u16_le(packet, header.chunk_id);
     write_u16_le(packet, header.chunk_total);
-    write_u16_le(packet, header.spare);
+    write_u16_le(packet, header.data_len);
     packet.insert(packet.end(), compressed.begin(), compressed.end());
     return packet;
 }
@@ -92,7 +93,7 @@ inline std::vector<uint8_t> make_packet_u16(
     write_u16_le(packet, header.frame_id);
     write_u16_le(packet, header.chunk_id);
     write_u16_le(packet, header.chunk_total);
-    write_u16_le(packet, header.spare);
+    write_u16_le(packet, header.data_len);
     for (uint16_t v : compressed) {
         write_u16_le(packet, v);
     }
@@ -132,7 +133,7 @@ inline std::vector<uint8_t> make_packet_u32(
     write_u16_le(packet, header.frame_id);
     write_u16_le(packet, header.chunk_id);
     write_u16_le(packet, header.chunk_total);
-    write_u16_le(packet, header.spare);
+    write_u16_le(packet, header.data_len);
     for (uint32_t v : compressed) {
         write_u32_le(packet, v);
     }
