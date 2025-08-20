@@ -76,6 +76,9 @@ int main() {
             encoder_model->load(ENCODER_PATH);
         #endif
 
+        PixelShuffler shuffler(ENCODER_OUT_H, ENCODER_OUT_W, ENCODER_OUT_C);
+        std::vector<uint8_t> encoded_fp8_shuf;
+
         std::vector<float> encoded;
         int frame_id = 0;
 
@@ -105,8 +108,6 @@ int main() {
             // float32->float8に量子化
             std::vector<uint8_t> encoded_fp8 = other_utils::float32_to_fp8(encoded);
 
-            PixelShuffler shuffler(ENCODER_OUT_H, ENCODER_OUT_W, ENCODER_OUT_C);
-            std::vector<uint8_t> encoded_fp8_shuf;
             shuffler.shuffle(encoded_fp8, encoded_fp8_shuf);
             
             // 3. チャンク分割
@@ -132,8 +133,7 @@ int main() {
             auto ms_send     = std::chrono::duration_cast<std::chrono::milliseconds>(t4 - t3).count();
             auto ms_total    = std::chrono::duration_cast<std::chrono::milliseconds>(t4 - t0).count();
 
-            fmt::print("[TIME] get_frame: {} ms | encode: {} ms | chunk: {} ms | send: {} ms | total: {} ms\n",
-                       ms_getframe, ms_encode, ms_chunk, ms_send, ms_total);
+            fmt::print("[TIME] get_frame: {} ms | encode: {} ms | chunk: {} ms | send: {} ms | total: {} ms\n", ms_getframe, ms_encode, ms_chunk, ms_send, ms_total);
             
             frame_id++;
         }
