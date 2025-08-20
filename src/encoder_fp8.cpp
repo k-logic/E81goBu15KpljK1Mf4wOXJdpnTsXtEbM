@@ -15,6 +15,7 @@
 #include <udp_sender.hpp>
 #include <camera_input2.hpp>
 #include <camera_input_gs.hpp>
+#include <pixel_shuffler.hpp>
 
 #if defined(USE_TENSORRT)
 #include <IModelExecutor.hpp>
@@ -30,12 +31,15 @@
 using namespace config;
 
 void send_chunks(asio::io_context& io, UdpSender& sender, int frame_id, const std::vector<std::vector<uint8_t>>& chunks, int encoded_size) {
+    /*
     std::vector<size_t> indices(chunks.size());
     std::iota(indices.begin(), indices.end(), 0);
     static std::mt19937 rng(std::random_device{}());
     std::shuffle(indices.begin(), indices.end(), rng);
 
     for (size_t i : indices) {
+    */
+    for (size_t i = 0; i < chunks.size(); ++i) {
         std::vector<uint8_t> uint8_data = chunks[i];
         packet::packet_header header{
             static_cast<uint16_t>(frame_id),
@@ -108,10 +112,14 @@ int main() {
 
             // float32->float8に量子化
             std::vector<uint8_t> encoded_fp8 = other_utils::float32_to_fp8(encoded);
+
+            PixelShuffler shuffler(ENCODER_OUT_H, ENCODER_OUT_W, ENCODER_OUT_C, 1234);
+            std::vector<uint8_t> encoded_fp8_shuf;
+            shuffler.shuffle(encoded_fp8, encoded_fp8_shuf);
             
             // 3. チャンク分割
             chunker::chunk_by_tiles_hwc(
-                encoded_fp8,
+                encoded_fp8_shuf,
                 ENCODER_OUT_C,
                 ENCODER_OUT_H,
                 ENCODER_OUT_W,

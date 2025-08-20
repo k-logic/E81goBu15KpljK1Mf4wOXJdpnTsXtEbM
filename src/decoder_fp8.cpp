@@ -27,6 +27,7 @@
 #include <image_utils.hpp>
 #include <image_display.hpp>
 #include <image_display2.hpp>
+#include <pixel_shuffler.hpp>
 
 #if defined(USE_TENSORRT)
 #include <IModelExecutor.hpp>
@@ -79,7 +80,11 @@ void on_receive(const udp::endpoint& sender, const std::vector<uint8_t>& packet,
             );
             auto t1 = std::chrono::high_resolution_clock::now();
 
-            std::vector<float> hwc_float32 = other_utils::fp8_to_float32(hwc);
+            PixelShuffler shuffler(DECODER_IN_H, DECODER_IN_W, DECODER_IN_C, 1234);
+            std::vector<uint8_t> hwc_restored;
+            shuffler.inverse(hwc, hwc_restored);
+
+            std::vector<float> hwc_float32 = other_utils::fp8_to_float32(hwc_restored);
 
             // デコード
             decoder_model.run(hwc_float32, decoded);
