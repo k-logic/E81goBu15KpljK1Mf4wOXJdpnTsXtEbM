@@ -52,13 +52,11 @@ private:
             // Jetson CSI（IMX219/IMX477など）：nvarguscamerasrc → NVMM → nvvidconv → BGR
             return
                 "nvarguscamerasrc ! "
-                "queue ! "
                 "video/x-raw(memory:NVMM),width=" + std::to_string(width) +
                 ",height=" + std::to_string(height) +
                 ",framerate=" + std::to_string(fps) + "/1 ! "
                 "nvvidconv ! video/x-raw,format=BGRx ! "
-                "videoconvert ! "
-                "video/x-raw,format=BGR ! "
+                "videoconvert ! video/x-raw,format=BGR ! "
                 "appsink name=sink max-buffers=1 drop=true sync=false";
         }
     }

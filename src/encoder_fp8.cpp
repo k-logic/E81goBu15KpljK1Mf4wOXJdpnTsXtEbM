@@ -15,6 +15,7 @@
 #include <udp_sender.hpp>
 #include <camera_input2.hpp>
 #include <camera_input_gs.hpp>
+#include <pixel_shuffler.hpp>
 
 #if defined(USE_TENSORRT)
 #include <IModelExecutor.hpp>
@@ -29,19 +30,14 @@
 
 using namespace config;
 
-void send_chunks(asio::io_context& io, UdpSender& sender, int frame_id, const std::vector<std::vector<float>>& chunks) {
-    std::vector<size_t> indices(chunks.size());
-    std::iota(indices.begin(), indices.end(), 0);
-    static std::mt19937 rng(std::random_device{}());
-    std::shuffle(indices.begin(), indices.end(), rng);
-
-    for (size_t i : indices) {
-        std::vector<uint8_t> uint8_data = other_utils::float32_to_fp8_bytes(chunks[i]);
+void send_chunks(asio::io_context& io, UdpSender& sender, int frame_id, const std::vector<std::vector<uint8_t>>& chunks, int encoded_size) {
+    for (size_t i = 0; i < chunks.size(); ++i) {
+        std::vector<uint8_t> uint8_data = chunks[i];
         packet::packet_header header{
             static_cast<uint16_t>(frame_id),
             static_cast<uint16_t>(i),
             static_cast<uint16_t>(chunks.size()),
-            0
+            static_cast<uint32_t>(encoded_size)
         };
         std::vector<uint8_t> packet = packet::make_packet_u8(header, uint8_data);
         if (packet.size() > MAX_SAFE_UDP_SIZE) {
@@ -62,7 +58,7 @@ int main() {
 
         //CameraInput camera(INPUT_SOURCE, INPUT_W, INPUT_H, INPUT_FPS);
         // CSI:UVC
-        CameraInputAppsink camera(CameraInputAppsink::SourceType::UVC, INPUT_SOURCE, INPUT_W, INPUT_H, INPUT_FPS);
+        CameraInputAppsink camera(CameraInputAppsink::SourceType::CSI, INPUT_SOURCE, INPUT_W, INPUT_H, INPUT_FPS);
 
         std::unique_ptr<IModelExecutor> encoder_model;
 
@@ -81,12 +77,13 @@ int main() {
         #endif
 
         std::vector<float> encoded;
-        std::vector<std::vector<float>> chunks;
         int frame_id = 0;
 
         while (true) {
             int key = cv::waitKey(1);
             if (key == 'q') break;
+
+            std::vector<std::vector<uint8_t>> chunks;
             
             // ===== 時間計測用 =====
             auto t0 = std::chrono::high_resolution_clock::now();
@@ -104,20 +101,17 @@ int main() {
             // 2. 推論
             encoder_model->run(input, encoded);
             auto t2 = std::chrono::high_resolution_clock::now();
+
+            // float32->float8に量子化
+            std::vector<uint8_t> encoded_fp8 = other_utils::float32_to_fp8(encoded);
+
+            PixelShuffler shuffler(ENCODER_OUT_H, ENCODER_OUT_W, ENCODER_OUT_C);
+            std::vector<uint8_t> encoded_fp8_shuf;
+            shuffler.shuffle(encoded_fp8, encoded_fp8_shuf);
             
             // 3. チャンク分割
-            /* 
-            chunker::chunk_by_pixels_hwc(
-                encoded,
-                ENCODER_OUT_C,
-                ENCODER_OUT_H,
-                ENCODER_OUT_W,
-                CHUNK_PIXEL,
-                chunks
-            ); 
-            */
             chunker::chunk_by_tiles_hwc(
-                encoded,
+                encoded_fp8_shuf,
                 ENCODER_OUT_C,
                 ENCODER_OUT_H,
                 ENCODER_OUT_W,
@@ -128,7 +122,7 @@ int main() {
             auto t3 = std::chrono::high_resolution_clock::now();
             
             // 4. UDP送信
-            send_chunks(io, sender, frame_id, chunks);
+            send_chunks(io, sender, frame_id, chunks, encoded_fp8.size());
             auto t4 = std::chrono::high_resolution_clock::now();
             
             // ===== 各区間の時間（ms）を計算 =====
