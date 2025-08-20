@@ -193,8 +193,8 @@ inline void reconstruct_from_tiles_hwc(
     int c, int h, int w,                             // チャンネル数, 高さ, 幅
     int tile_w, int tile_h                           // タイル幅・高さ（ピクセル単位）
 ) {
-    const int tiles_x = (w + tile_w - 1) / tile_w;  // 横方向タイル数
-    const int tiles_y = (h + tile_h - 1) / tile_h;  // 縦方向タイル数
+    const int tiles_x = (w + tile_w - 1) / tile_w;   // 横方向タイル数
+    const int tiles_y = (h + tile_h - 1) / tile_h;   // 縦方向タイル数
     const int expected_tile_count = tiles_x * tiles_y;
 
     if (chunks.size() != static_cast<size_t>(expected_tile_count) ||

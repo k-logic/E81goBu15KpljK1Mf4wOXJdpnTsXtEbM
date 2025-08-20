@@ -29,7 +29,7 @@
 
 using namespace config;
 
-void send_chunks(asio::io_context& io, UdpSender& sender, int frame_id, const std::vector<std::vector<uint8_t>>& chunks) {
+void send_chunks(asio::io_context& io, UdpSender& sender, int frame_id, const std::vector<std::vector<uint8_t>>& chunks, int encoded_size) {
     std::vector<size_t> indices(chunks.size());
     std::iota(indices.begin(), indices.end(), 0);
     static std::mt19937 rng(std::random_device{}());
@@ -41,7 +41,7 @@ void send_chunks(asio::io_context& io, UdpSender& sender, int frame_id, const st
             static_cast<uint16_t>(frame_id),
             static_cast<uint16_t>(i),
             static_cast<uint16_t>(chunks.size()),
-            0
+            static_cast<uint32_t>(encoded_size)
         };
         std::vector<uint8_t> packet = packet::make_packet_u8(header, uint8_data);
         if (packet.size() > MAX_SAFE_UDP_SIZE) {
@@ -81,12 +81,13 @@ int main() {
         #endif
 
         std::vector<float> encoded;
-        std::vector<std::vector<uint8_t>> chunks;
         int frame_id = 0;
 
         while (true) {
             int key = cv::waitKey(1);
             if (key == 'q') break;
+
+            std::vector<std::vector<uint8_t>> chunks;
             
             // ===== 時間計測用 =====
             auto t0 = std::chrono::high_resolution_clock::now();
@@ -121,7 +122,7 @@ int main() {
             auto t3 = std::chrono::high_resolution_clock::now();
             
             // 4. UDP送信
-            send_chunks(io, sender, frame_id, chunks);
+            send_chunks(io, sender, frame_id, chunks, encoded_fp8.size());
             auto t4 = std::chrono::high_resolution_clock::now();
             
             // ===== 各区間の時間（ms）を計算 =====

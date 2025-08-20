@@ -94,7 +94,7 @@ void on_receive(const udp::endpoint& sender, const std::vector<uint8_t>& packet,
             current_frame_id = parsed.header.frame_id;
             current_frame.chunk_total = parsed.header.chunk_total;
             current_frame.received_count = 0;
-            current_frame.chunks.assign(current_frame.chunk_total, std::vector<uint8_t>(CHUNK_PIXEL * DECODER_IN_C, 0.0f));
+            current_frame.chunks.assign(current_frame.chunk_total, std::vector<uint8_t>(CHUNK_PIXEL * DECODER_IN_C, 0));
             current_frame.received_flags.assign(current_frame.chunk_total, false);
 
              // ===== 各区間の時間（ms）を計算 =====
@@ -113,7 +113,7 @@ void on_receive(const udp::endpoint& sender, const std::vector<uint8_t>& packet,
             current_frame_id = parsed.header.frame_id;
             current_frame.chunk_total = parsed.header.chunk_total;
             current_frame.received_count = 0;
-            current_frame.chunks.assign(current_frame.chunk_total, std::vector<uint8_t>(CHUNK_PIXEL * DECODER_IN_C, 0.0f));
+            current_frame.chunks.assign(current_frame.chunk_total, std::vector<uint8_t>(CHUNK_PIXEL * DECODER_IN_C, 0));
             current_frame.received_flags.assign(current_frame.chunk_total, false);
         }
 
