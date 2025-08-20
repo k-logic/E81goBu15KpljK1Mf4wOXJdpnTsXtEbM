@@ -142,15 +142,11 @@ inline void reconstruct_from_chunks_hwc(
     }
 }
 
-
 inline void chunk_by_tiles_hwc(
-    const std::vector<float>& hwc,       // 入力 HWC 配列
-    int c,                               // チャンネル数
-    int h,                               // 高さ
-    int w,                               // 幅
-    int tile_w,                          // タイル幅（ピクセル単位）
-    int tile_h,                          // タイル高さ（ピクセル単位）
-    std::vector<std::vector<float>>& chunks // 出力チャンク配列（再利用）
+    const std::vector<uint8_t>& hwc,
+    int c, int h, int w,
+    int tile_w, int tile_h,
+    std::vector<std::vector<uint8_t>>& chunks
 ) {
     if (c <= 0 || h <= 0 || w <= 0 || tile_w <= 0 || tile_h <= 0) {
         throw std::invalid_argument("Invalid argument");
@@ -166,7 +162,7 @@ inline void chunk_by_tiles_hwc(
     chunks.clear();
     chunks.reserve(tiles_x * tiles_y);
 
-    const float* base = hwc.data();
+    const uint8_t* base = hwc.data();
 
     for (int ty = 0; ty < tiles_y; ++ty) {
         for (int tx = 0; tx < tiles_x; ++tx) {
@@ -175,14 +171,13 @@ inline void chunk_by_tiles_hwc(
             int end_x   = std::min(start_x + tile_w, w);
             int end_y   = std::min(start_y + tile_h, h);
 
-            // タイル内のピクセルを収集
-            std::vector<float> chunk;
+            std::vector<uint8_t> chunk;
             chunk.reserve((end_y - start_y) * (end_x - start_x) * c);
 
             for (int y = start_y; y < end_y; ++y) {
-                const float* row_ptr = base + (y * w * c);
+                const uint8_t* row_ptr = base + (y * w * c);
                 for (int x = start_x; x < end_x; ++x) {
-                    const float* pixel_ptr = row_ptr + (x * c);
+                    const uint8_t* pixel_ptr = row_ptr + (x * c);
                     chunk.insert(chunk.end(), pixel_ptr, pixel_ptr + c);
                 }
             }
@@ -190,7 +185,6 @@ inline void chunk_by_tiles_hwc(
         }
     }
 }
-
 
 inline void reconstruct_from_tiles_hwc(
     const std::vector<std::vector<float>>& chunks, // タイルごとのデータ

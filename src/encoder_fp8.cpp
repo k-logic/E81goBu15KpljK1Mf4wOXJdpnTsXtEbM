@@ -29,14 +29,14 @@
 
 using namespace config;
 
-void send_chunks(asio::io_context& io, UdpSender& sender, int frame_id, const std::vector<std::vector<float>>& chunks) {
+void send_chunks(asio::io_context& io, UdpSender& sender, int frame_id, const std::vector<std::vector<uint8_t>>& chunks) {
     std::vector<size_t> indices(chunks.size());
     std::iota(indices.begin(), indices.end(), 0);
     static std::mt19937 rng(std::random_device{}());
     std::shuffle(indices.begin(), indices.end(), rng);
 
     for (size_t i : indices) {
-        std::vector<uint8_t> uint8_data = other_utils::float32_to_fp8_bytes(chunks[i]);
+        std::vector<uint8_t> uint8_data = chunks[i];
         packet::packet_header header{
             static_cast<uint16_t>(frame_id),
             static_cast<uint16_t>(i),
@@ -62,7 +62,7 @@ int main() {
 
         //CameraInput camera(INPUT_SOURCE, INPUT_W, INPUT_H, INPUT_FPS);
         // CSI:UVC
-        CameraInputAppsink camera(CameraInputAppsink::SourceType::UVC, INPUT_SOURCE, INPUT_W, INPUT_H, INPUT_FPS);
+        CameraInputAppsink camera(CameraInputAppsink::SourceType::CSI, INPUT_SOURCE, INPUT_W, INPUT_H, INPUT_FPS);
 
         std::unique_ptr<IModelExecutor> encoder_model;
 
@@ -81,7 +81,7 @@ int main() {
         #endif
 
         std::vector<float> encoded;
-        std::vector<std::vector<float>> chunks;
+        std::vector<std::vector<uint8_t>> chunks;
         int frame_id = 0;
 
         while (true) {
@@ -104,20 +104,13 @@ int main() {
             // 2. 推論
             encoder_model->run(input, encoded);
             auto t2 = std::chrono::high_resolution_clock::now();
+
+            // float32->float8に量子化
+            std::vector<uint8_t> encoded_fp8 = other_utils::float32_to_fp8(encoded);
             
             // 3. チャンク分割
-            /* 
-            chunker::chunk_by_pixels_hwc(
-                encoded,
-                ENCODER_OUT_C,
-                ENCODER_OUT_H,
-                ENCODER_OUT_W,
-                CHUNK_PIXEL,
-                chunks
-            ); 
-            */
             chunker::chunk_by_tiles_hwc(
-                encoded,
+                encoded_fp8,
                 ENCODER_OUT_C,
                 ENCODER_OUT_H,
                 ENCODER_OUT_W,
