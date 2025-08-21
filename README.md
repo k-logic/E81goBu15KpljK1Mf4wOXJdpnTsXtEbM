@@ -14,7 +14,7 @@ src/encoder_fp8.cpp \
 -I./include \
 -I/usr/include/opencv4 \
 -L./lib \
--ltensorflowlite \
+-ltensorflowlite -Wl,-rpath=./lib \
 `pkg-config --cflags --libs opencv4` \
 `pkg-config --cflags --libs gstreamer-1.0 gstreamer-app-1.0` \
 -DUSE_TFLITE \
@@ -31,7 +31,7 @@ src/decoder_fp8.cpp \
 -I./include \
 -I/usr/include/opencv4 \
 -L./lib \
--ltensorflowlite \
+-ltensorflowlite -Wl,-rpath=./lib \
 `pkg-config --cflags --libs opencv4` \
 `pkg-config --cflags --libs gstreamer-1.0 gstreamer-app-1.0` \
 -DUSE_TFLITE \
