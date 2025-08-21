@@ -5,12 +5,6 @@
 g++ -std=c++23 src/encoder.cpp -Iinclude -L./lib -ltensorflowlite `pkg-config --cflags --libs opencv4` -Wl,-rpath=./lib -DUSE_TFLITE -o encoder_app
 ```
 
-#### encoder CUDA
-```
-g++ -std=c++23 src/encoder.cpp -I./include -I/usr/include/aarch64-linux-gnu -I/usr/local/cuda/include -L./lib -L/usr/lib/aarch64-linux-gnu -L/usr/local/cuda/lib64 -lnvinfer -lcudart `pkg-config --cflags --libs opencv4` -DUSE_TENSORRT -o encoder_app
-
-オプション「-Ofast」で高速化
-```
 
 ### decoder
 ```
@@ -20,10 +14,19 @@ g++ -std=c++23 src/decoder.cpp -Iinclude -L./lib -ltensorflowlite `pkg-config --
 ```
 
 
-#### decoder CUDA
+### encoder CUDA
+```
+g++ -std=c++23 src/encoder.cpp -I./include -I/usr/include/aarch64-linux-gnu -I/usr/local/cuda/include -L./lib -L/usr/lib/aarch64-linux-gnu -L/usr/local/cuda/lib64 -lnvinfer -lcudart `pkg-config --cflags --libs opencv4` -DUSE_TENSORRT -o encoder_app
+
+オプション「-Ofast」で高速化
+```
+
+
+### decoder CUDA
 ```
 g++ -std=c++23 src/decoder.cpp -I./include -I/usr/include/aarch64-linux-gnu -I/usr/local/cuda/include -L./lib -L/usr/lib/aarch64-linux-gnu -L/usr/local/cuda/lib64 -lnvinfer -lcudart `pkg-config --cflags --libs opencv4` -DUSE_TENSORRT -o decoder_app
 ```
+
 
 ## install modules
 ```
@@ -41,6 +44,7 @@ sudo apt install -y build-essential cmake git pkg-config \
 sudo apt update
 sudo apt install libopencv-dev
 ```
+
 
 ## Build Install opencv
 ```
@@ -91,7 +95,8 @@ sudo mv bazel /usr/local/bin/bazel
 bazel version
 ```
 
-## liteRT build
+
+## LiteRT build
 ```
 git clone https://github.com/tensorflow/tensorflow.git tensorflow_src
 

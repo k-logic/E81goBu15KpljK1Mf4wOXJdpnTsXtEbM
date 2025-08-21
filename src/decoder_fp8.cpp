@@ -90,6 +90,7 @@ void on_receive(const udp::endpoint& sender, const std::vector<uint8_t>& packet,
             auto t0 = std::chrono::high_resolution_clock::now();
             auto t_prev = t0;
             
+            /*
             chunker::reconstruct_from_tiles_hwc(
                 current_frame.chunks,
                 current_frame.received_flags,
@@ -99,6 +100,15 @@ void on_receive(const udp::endpoint& sender, const std::vector<uint8_t>& packet,
                 DECODER_IN_W,
                 CHUNK_PIXEL_W,
                 CHUNK_PIXEL_H
+            );
+            */
+            chunker::reconstruct_from_chunks_hwc(
+                current_frame.chunks,
+                current_frame.received_flags,
+                hwc.data(),
+                DECODER_IN_C,
+                DECODER_IN_H,
+                DECODER_IN_W
             );
             auto t1 = std::chrono::high_resolution_clock::now();
 
