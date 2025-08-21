@@ -7,7 +7,7 @@
 #include <span>
 
 namespace chunker {
-// CHW形式のエンコード出力を「ピクセルN個単位」でチャンク化
+// HWC配列をピクセルN個単位で分割
 inline void chunk_by_pixels_hwc(
     const std::vector<uint8_t>& hwc,       // 入力 HWC 配列
     int c,                                 // チャンネル数
@@ -39,6 +39,7 @@ inline void chunk_by_pixels_hwc(
     }
 }
 
+// chunks(=HWCでピクセル連続) → HWC一次元配列 へ再構築
 inline void reconstruct_from_chunks_hwc(
     const std::vector<std::vector<uint8_t>>& chunks,  // ソート済み
     const std::vector<bool>& received_flags,          // チャンク到着フラグ
@@ -63,51 +64,6 @@ inline void reconstruct_from_chunks_hwc(
         }
 
         // 正常受信したチャンクのみ書き込み
-        for (int p = 0; p < num_pixels; ++p) {
-            if (pixel_index >= hw) break;
-            for (int ch = 0; ch < c; ++ch) {
-                hwc_data[pixel_index * c + ch] = chunk[p * c + ch];
-            }
-            ++pixel_index;
-        }
-    }
-}
-// ゼロコピー版：チャンク化データを元のCHW形式「1次元ベクトル」に再構築化
-inline void reconstruct_from_chunks_chw(
-    const std::vector<std::vector<float>>& chunks,
-    float* chw_data,
-    int c, int h, int w,
-    int pixels_per_chunk = 16
-) {
-    const int hw = h * w;
-    int pixel_index = 0;
-
-    for (const auto& chunk : chunks) {
-        const int num_pixels = chunk.size() / c;
-        for (int p = 0; p < num_pixels; ++p) {
-            if (pixel_index >= hw) break;
-            const int y = pixel_index / w;
-            const int x = pixel_index % w;
-            for (int ch = 0; ch < c; ++ch) {
-                const int dst_index = ch * hw + y * w + x;
-                chw_data[dst_index] = chunk[p * c + ch];
-            }
-            ++pixel_index;
-        }
-    }
-}
-
-// chunks(=HWCでピクセル連続) → HWC一次元配列 へ再構築
-inline void reconstruct_from_chunks_hwc(
-    const std::vector<std::vector<float>>& chunks, // ソート済み・欠損補完済み
-    float* hwc_data,
-    int c, int h, int w
-) {
-    const int hw = h * w;
-    int pixel_index = 0;
-
-    for (const auto& chunk : chunks) {
-        const int num_pixels = static_cast<int>(chunk.size()) / c;
         for (int p = 0; p < num_pixels; ++p) {
             if (pixel_index >= hw) break;
             for (int ch = 0; ch < c; ++ch) {
