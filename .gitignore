@@ -40,6 +40,9 @@
 # debug information files
 *.dwo
 
+# vscode
+.vscode
+
 models/*
 include/tensorflow/*
 include/flatbuffers/*

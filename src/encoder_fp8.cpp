@@ -111,6 +111,7 @@ int main() {
             shuffler.shuffle(encoded_fp8, encoded_fp8_shuf);
             
             // 3. チャンク分割
+            /*
             chunker::chunk_by_tiles_hwc(
                 encoded_fp8_shuf,
                 ENCODER_OUT_C,
@@ -118,6 +119,15 @@ int main() {
                 ENCODER_OUT_W,
                 CHUNK_PIXEL_W,
                 CHUNK_PIXEL_H,
+                chunks
+            );
+            */
+            chunker::chunk_by_pixels_hwc(
+                encoded_fp8_shuf,
+                ENCODER_OUT_C,
+                ENCODER_OUT_H,
+                ENCODER_OUT_W,
+                CHUNK_PIXEL,
                 chunks
             );
             auto t3 = std::chrono::high_resolution_clock::now();
