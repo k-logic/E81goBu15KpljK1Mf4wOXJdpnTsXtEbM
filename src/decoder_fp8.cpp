@@ -22,10 +22,9 @@
 #include <packet.hpp>
 #include <chunker.hpp>
 #include <other_utils.hpp>
-#include <debug_utils.hpp>
 #include <udp_server.hpp>
 #include <image_utils.hpp>
-#include <image_display2.hpp>
+#include <image_display.hpp>
 #include <pixel_shuffler.hpp>
 
 #if defined(USE_TENSORRT)

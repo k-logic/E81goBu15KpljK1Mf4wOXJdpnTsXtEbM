@@ -11,9 +11,8 @@
 #include <packet.hpp>
 #include <chunker.hpp>
 #include <other_utils.hpp>
-#include <debug_utils.hpp>
 #include <udp_sender.hpp>
-#include <camera_input2.hpp>
+#include <camera_input.hpp>
 #include <camera_input_gs.hpp>
 #include <pixel_shuffler.hpp>
 
