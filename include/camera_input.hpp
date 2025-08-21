@@ -1,5 +1,4 @@
 #pragma once
-
 #include <opencv2/opencv.hpp>
 #include <stdexcept>
 #include <vector>
@@ -11,46 +10,55 @@ private:
     cv::VideoCapture cap_;
     int width_, height_, fps_;
 
+    cv::Mat frame_bgr_;             // 再利用用BGRバッファ
+    std::vector<float> chw_buffer_; // 再利用用CHWバッファ
+
 public:
-    CameraInput(const std::string& source, int width, int height, int fps)
+    CameraInput(const std::string& camera_source = "/dev/video0",
+                int width = 640, int height = 480, int fps = 60)
         : width_(width), height_(height), fps_(fps)
     {
-        cap_.open(source, cv::CAP_V4L2);
+        // V4L2でカメラオープン
+        cap_.open(camera_source, cv::CAP_V4L2);
         if (!cap_.isOpened()) {
-            throw std::runtime_error("カメラを開けませんでした");
+            throw std::runtime_error("カメラを開けませんでした。");
         }
 
-        // MJPGに設定
+        // MJPG設定
         cap_.set(cv::CAP_PROP_FOURCC, cv::VideoWriter::fourcc('M', 'J', 'P', 'G'));
-        cap_.set(cv::CAP_PROP_FRAME_WIDTH, width_);
+        cap_.set(cv::CAP_PROP_FRAME_WIDTH,  width_);
         cap_.set(cv::CAP_PROP_FRAME_HEIGHT, height_);
-        cap_.set(cv::CAP_PROP_FPS, fps_);
-        cap_.set(cv::CAP_PROP_BUFFERSIZE, 1);
+        cap_.set(cv::CAP_PROP_FPS,          fps_);
+        cap_.set(cv::CAP_PROP_BUFFERSIZE,   1);
 
         std::cout << "==== Camera Settings ====\n";
         std::cout << "Width  : " << cap_.get(cv::CAP_PROP_FRAME_WIDTH)  << "\n";
         std::cout << "Height : " << cap_.get(cv::CAP_PROP_FRAME_HEIGHT) << "\n";
         std::cout << "FPS    : " << cap_.get(cv::CAP_PROP_FPS)          << "\n";
+
+        // バッファ再利用準備
+        frame_bgr_.create(height_, width_, CV_8UC3);
+        chw_buffer_.resize(3 * width_ * height_);
     }
 
-    // CHW形式のvectorで返す
-    std::vector<float> get_frame_chw() {
-        cv::Mat frame;
-        cap_ >> frame;
-        if (frame.empty()) return {};
+    // 低遅延でCHW形式float32を取得
+    std::vector<float>& get_frame_chw() {
+        if (!cap_.read(frame_bgr_)) {
+            throw std::runtime_error("フレームを取得できませんでした。");
+        }
 
-        cv::resize(frame, frame, cv::Size(width_, height_));
-        frame.convertTo(frame, CV_32F, 1.0 / 255.0);
+        // BGR8 → CHW float32 (0〜1)
+        const int hw = width_ * height_;
+        float* dst_b = chw_buffer_.data();
+        float* dst_g = dst_b + hw;
+        float* dst_r = dst_g + hw;
 
-        std::vector<cv::Mat> channels(3);
-        cv::split(frame, channels);
-
-        size_t hw = width_ * height_;
-        std::vector<float> chw(hw * 3);
-        std::memcpy(chw.data(),        channels[0].data, hw * sizeof(float)); // B
-        std::memcpy(chw.data() + hw,   channels[1].data, hw * sizeof(float)); // G
-        std::memcpy(chw.data() + hw*2, channels[2].data, hw * sizeof(float)); // R
-
-        return chw;
+        const uchar* src = frame_bgr_.ptr<uchar>(0);
+        for (int i = 0; i < hw; ++i) {
+            dst_b[i] = src[i * 3 + 0] * (1.0f / 255.0f);
+            dst_g[i] = src[i * 3 + 1] * (1.0f / 255.0f);
+            dst_r[i] = src[i * 3 + 2] * (1.0f / 255.0f);
+        }
+        return chw_buffer_;
     }
 };

@@ -1,145 +1,108 @@
 #pragma once
-
 #include <opencv2/opencv.hpp>
+#include <thread>
+#include <atomic>
+#include <queue>
+#include <mutex>
+#include <condition_variable>
 #include <chrono>
-#include <cstdio>
+#include <memory>
 
 namespace image_display {
 
-// シャープ化設定
-#ifndef SHARPEN_ENABLE
-#define SHARPEN_ENABLE 1   // 0で無効化
-#endif
+struct Frame {
+    std::shared_ptr<cv::Mat> mat;
+};
 
-#ifndef SHARPEN_METHOD_USM
-#define SHARPEN_METHOD_USM 1  // 1: アンシャープマスク / 0: 3x3 シャープカーネル
-#endif
+static std::thread display_thread;
+static std::queue<Frame> frame_queue;
+static std::mutex queue_mutex;
+static std::condition_variable queue_cv;
+static std::atomic<bool> running{false};
 
-// 調整用パラメータ
-static double g_usm_sigma   = 1.0;  // ぼかし強さ
-static double g_usm_amount  = 0.6;  // 強調量
-static int    g_kernel_ksz  = 0;    // 0ならsigma優先
+// 再利用バッファ
+static cv::Mat hwc_f32;
+static cv::Mat hwc_u8;
 
-// ===== CHW入力（C=3前提、BGR想定） =====
-inline void display_decoded_image_chw(const float* chw, int c, int h, int w) {
-    static auto last_time = std::chrono::high_resolution_clock::now();
-    static cv::Mat image_f32;
-    static cv::Mat image_u8;
+inline void display_loop() {
+    using clock = std::chrono::high_resolution_clock;
+    auto last_time = clock::now();
 
-    const size_t hw = static_cast<size_t>(h) * static_cast<size_t>(w);
+    while (running) {
+        Frame f;
+        bool has_frame = false;
 
-    // 出力バッファ確保
-    if (image_f32.empty() || image_f32.rows != h || image_f32.cols != w) {
-        image_f32 = cv::Mat(h, w, CV_32FC3);
-    }
+        {
+            std::unique_lock lk(queue_mutex);
+            queue_cv.wait_for(lk, std::chrono::milliseconds(30),
+                              [] { return !frame_queue.empty() || !running; });
 
-    float* dst = reinterpret_cast<float*>(image_f32.data);
+            if (!running) break;
 
-    // CHW -> HWC (BGR)
-    for (size_t i = 0; i < hw; ++i) {
-        dst[i * 3 + 0] = chw[0 * hw + i]; // B
-        dst[i * 3 + 1] = chw[1 * hw + i]; // G
-        dst[i * 3 + 2] = chw[2 * hw + i]; // R
-    }
-
-    // float[0..1] -> uint8
-    if (image_u8.empty() || image_u8.rows != h || image_u8.cols != w) {
-        image_u8 = cv::Mat(h, w, CV_8UC3);
-    }
-    image_f32.convertTo(image_u8, CV_8UC3, 255.0);
-
-#if SHARPEN_ENABLE
-#if SHARPEN_METHOD_USM
-    {
-        static cv::Mat blur_u8;
-        if (blur_u8.empty() || blur_u8.rows != h || blur_u8.cols != w) {
-            blur_u8 = cv::Mat(h, w, CV_8UC3);
+            if (!frame_queue.empty()) {
+                f = std::move(frame_queue.front());
+                frame_queue.pop();
+                has_frame = true;
+            }
         }
-        cv::GaussianBlur(image_u8, blur_u8,
-                         (g_kernel_ksz > 0) ? cv::Size(g_kernel_ksz, g_kernel_ksz) : cv::Size(0, 0),
-                         g_usm_sigma, g_usm_sigma, cv::BORDER_REPLICATE);
-        cv::addWeighted(image_u8, 1.0 + g_usm_amount, blur_u8, -g_usm_amount, 0.0, image_u8);
+
+        if (has_frame && f.mat) {
+            // FPS計算
+            auto now = clock::now();
+            float fps = 1000.0f /
+                        std::chrono::duration<float, std::milli>(now - last_time).count();
+            last_time = now;
+
+            // FPS表示
+            cv::putText(*f.mat, cv::format("FPS: %.1f", fps),
+                        {10, 30}, cv::FONT_HERSHEY_SIMPLEX, 0.8,
+                        {0, 255, 0}, 2, cv::LINE_AA);
+
+            cv::imshow("Decoded", *f.mat);
+        }
+
+        cv::pollKey();
     }
-#else
-    {
-        static cv::Mat kernel = (cv::Mat_<float>(3,3) <<
-             0, -1,  0,
-            -1,  5, -1,
-             0, -1,  0
-        );
-        cv::filter2D(image_u8, image_u8, -1, kernel, cv::Point(-1,-1), 0.0, cv::BORDER_REPLICATE);
-    }
-#endif
-#endif
-
-    // FPS表示
-    auto now = std::chrono::high_resolution_clock::now();
-    float fps = 1000.0f / std::chrono::duration<float, std::milli>(now - last_time).count();
-    last_time = now;
-
-    static char fps_buf[32];
-    std::snprintf(fps_buf, sizeof(fps_buf), "FPS: %.1f", fps);
-    cv::putText(image_u8, fps_buf, {10, 30}, cv::FONT_HERSHEY_SIMPLEX, 0.8, {0,255,0}, 2, cv::LINE_AA);
-
-    cv::imshow("Decoded", image_u8);
-    cv::waitKey(1);
 }
 
-// ===== HWC入力（C=3前提、BGRまたはRGB） =====
-// #define HWC_IS_RGB でRGB→BGR変換
-inline void display_decoded_image_hwc(const float* hwc, int c, int h, int w) {
-    static auto last_time = std::chrono::high_resolution_clock::now();
-    static cv::Mat image_u8;
-
-    if (!hwc || c != 3) return;
-
-    // HWCをそのままMatにラップ
-    cv::Mat image_f32(h, w, CV_32FC3, const_cast<float*>(hwc));
-
-    // float[0..1] -> uint8
-    if (image_u8.empty() || image_u8.rows != h || image_u8.cols != w) {
-        image_u8 = cv::Mat(h, w, CV_8UC3);
-    }
-    image_f32.convertTo(image_u8, CV_8UC3, 255.0);
-
-#if defined(HWC_IS_RGB)
-    cv::cvtColor(image_u8, image_u8, cv::COLOR_RGB2BGR);
-#endif
-
-#if SHARPEN_ENABLE
-#if SHARPEN_METHOD_USM
-    {
-        static cv::Mat blur_u8;
-        if (blur_u8.empty() || blur_u8.rows != h || blur_u8.cols != w) {
-            blur_u8 = cv::Mat(h, w, CV_8UC3);
-        }
-        cv::GaussianBlur(image_u8, blur_u8,
-                         (g_kernel_ksz > 0) ? cv::Size(g_kernel_ksz, g_kernel_ksz) : cv::Size(0, 0),
-                         g_usm_sigma, g_usm_sigma, cv::BORDER_REPLICATE);
-        cv::addWeighted(image_u8, 1.0 + g_usm_amount, blur_u8, -g_usm_amount, 0.0, image_u8);
-    }
-#else
-    {
-        static cv::Mat kernel = (cv::Mat_<float>(3,3) <<
-             0, -1,  0,
-            -1,  5, -1,
-             0, -1,  0
-        );
-        cv::filter2D(image_u8, image_u8, -1, kernel, cv::Point(-1,-1), 0.0, cv::BORDER_REPLICATE);
-    }
-#endif
-#endif
-
-    // FPS表示
-    auto now = std::chrono::high_resolution_clock::now();
-    float fps = 1000.0f / std::chrono::duration<float, std::milli>(now - last_time).count();
-    last_time = now;
-
-    static char fps_buf[32];
-    std::snprintf(fps_buf, sizeof(fps_buf), "FPS: %.1f", fps);
-    cv::putText(image_u8, fps_buf, {10, 30}, cv::FONT_HERSHEY_SIMPLEX, 0.8, {0,255,0}, 2, cv::LINE_AA);
-
-    cv::imshow("Decoded", image_u8);
-    cv::waitKey(1);
+// --- スレッド制御 ---
+inline void start_display_thread() {
+    running = true;
+    display_thread = std::thread(display_loop);
 }
+
+inline void stop_display_thread() {
+    running = false;
+    queue_cv.notify_all();
+    if (display_thread.joinable()) display_thread.join();
+}
+
+// CHW入力の非同期描画キュー投入
+inline void enqueue_frame_chw(const float* chw, int c, int h, int w) {
+    if (hwc_f32.empty()) {
+        hwc_f32.create(h, w, CV_32FC3);
+        hwc_u8.create(h, w, CV_8UC3);
+    }
+
+    // CHW → HWC float32
+    std::vector<cv::Mat> channels;
+    channels.reserve(3);
+    channels.emplace_back(h, w, CV_32F, const_cast<float*>(chw + 0 * h * w));
+    channels.emplace_back(h, w, CV_32F, const_cast<float*>(chw + 1 * h * w));
+    channels.emplace_back(h, w, CV_32F, const_cast<float*>(chw + 2 * h * w));
+    cv::merge(channels, hwc_f32);
+
+    // float32 → uint8
+    hwc_f32.convertTo(hwc_u8, CV_8UC3, 255.0);
+
+    auto frame = std::make_shared<cv::Mat>(hwc_u8);
+
+    {
+        std::lock_guard lk(queue_mutex);
+        while (!frame_queue.empty()) frame_queue.pop(); // 最新だけ残す
+        frame_queue.push({frame});
+    }
+    queue_cv.notify_one();
+}
+
 }
