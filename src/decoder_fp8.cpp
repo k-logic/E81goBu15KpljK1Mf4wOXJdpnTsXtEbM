@@ -31,7 +31,7 @@
 
 #if defined(USE_TENSORRT)
 #include <IModelExecutor.hpp>
-#include <TensorRTExecutor.cu>
+#include <TensorRTExecutor.hpp>
 #include <cuda_runtime.h>
 #endif
 
