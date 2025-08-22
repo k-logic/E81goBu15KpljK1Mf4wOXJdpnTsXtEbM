@@ -24,8 +24,8 @@
 #include <other_utils.hpp>
 #include <udp_server.hpp>
 #include <image_utils.hpp>
-//#include <image_display.hpp>
-#include <image_display_u8.hpp>
+#include <image_display.hpp>
+//#include <image_display_u8.hpp>
 //#include <image_display_gl.cu>
 #include <pixel_shuffler.hpp>
 
@@ -122,6 +122,7 @@ void on_receive(const udp::endpoint& sender, const std::vector<uint8_t>& packet,
             decoder_model.run(hwc_float32, decoded);
             auto t2 = std::chrono::high_resolution_clock::now();
 
+            /*
             // === OpenCVで float32 → uint8 に変換 ===
             cv::Mat decodedMat(DECODER_OUT_H, DECODER_OUT_W, CV_32FC3, decoded.data());
             cv::Mat u8Mat;
@@ -129,9 +130,10 @@ void on_receive(const udp::endpoint& sender, const std::vector<uint8_t>& packet,
 
             // フレームバッファにコピー
             frame_u8.assign(u8Mat.data, u8Mat.data + u8Mat.total() * u8Mat.elemSize());
+            */
 
             // 表示
-            image_display::update_frame(frame_u8.data(), DECODER_OUT_C, DECODER_OUT_H, DECODER_OUT_W);
+            image_display::update_frame(decoded.data(), DECODER_OUT_C, DECODER_OUT_H, DECODER_OUT_W);
             auto t3 = std::chrono::high_resolution_clock::now();
 
             // 新フレーム用に初期化
