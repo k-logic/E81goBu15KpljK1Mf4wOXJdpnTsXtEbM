@@ -121,7 +121,7 @@ void on_receive(const udp::endpoint& sender, const std::vector<uint8_t>& packet,
 
             // 表示
             //image_display::display_decoded_image_chw(decoded.data(), DECODER_OUT_C, DECODER_OUT_H, DECODER_OUT_W);
-            image_display::enqueue_frame_chw(decoded.data(), DECODER_OUT_C, DECODER_OUT_H, DECODER_OUT_W);
+            image_display::update_frame(decoded.data(), DECODER_OUT_C, DECODER_OUT_H, DECODER_OUT_W);
             auto t3 = std::chrono::high_resolution_clock::now();
 
             // 新フレーム用に初期化

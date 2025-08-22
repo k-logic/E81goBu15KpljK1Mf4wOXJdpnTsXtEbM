@@ -10,8 +10,10 @@
 
 namespace image_display {
 
+// CHW float32 データを保持するフレーム構造体
 struct Frame {
-    std::shared_ptr<cv::Mat> mat;
+    std::vector<float> chw;
+    int c, h, w;
 };
 
 static std::thread display_thread;
@@ -46,22 +48,40 @@ inline void display_loop() {
             }
         }
 
-        if (has_frame && f.mat) {
-            // FPS計算
+        if (has_frame && !f.chw.empty()) {
+            // === CHW → HWC float32 ===
+            if (hwc_f32.empty()) {
+                hwc_f32.create(f.h, f.w, CV_32FC3);
+                hwc_u8.create(f.h, f.w, CV_8UC3);
+            }
+
+            std::vector<cv::Mat> channels;
+            channels.reserve(f.c);
+            for (int i = 0; i < f.c; i++) {
+                channels.emplace_back(f.h, f.w, CV_32F,
+                                      const_cast<float*>(f.chw.data() + i * f.h * f.w));
+            }
+            cv::merge(channels, hwc_f32);
+
+            // === float32 → uint8 ===
+            hwc_f32.convertTo(hwc_u8, CV_8UC3, 255.0);
+
+            // === FPS計算 ===
             auto now = clock::now();
             float fps = 1000.0f /
                         std::chrono::duration<float, std::milli>(now - last_time).count();
             last_time = now;
 
-            // FPS表示
-            cv::putText(*f.mat, cv::format("FPS: %.1f", fps),
-                        {10, 30}, cv::FONT_HERSHEY_SIMPLEX, 0.8,
-                        {0, 255, 0}, 2, cv::LINE_AA);
+            char buf[32];
+            snprintf(buf, sizeof(buf), "FPS: %.1f", fps);
 
-            cv::imshow("Decoded", *f.mat);
+            cv::putText(hwc_u8, buf, {10,30},
+                        cv::FONT_HERSHEY_SIMPLEX, 0.8,
+                        {0,255,0}, 1, cv::LINE_8);
+
+            cv::imshow("Decoded", hwc_u8);
+            cv::pollKey();
         }
-
-        cv::pollKey();
     }
 }
 
@@ -77,30 +97,15 @@ inline void stop_display_thread() {
     if (display_thread.joinable()) display_thread.join();
 }
 
-// CHW入力の非同期描画キュー投入
-inline void enqueue_frame_chw(const float* chw, int c, int h, int w) {
-    if (hwc_f32.empty()) {
-        hwc_f32.create(h, w, CV_32FC3);
-        hwc_u8.create(h, w, CV_8UC3);
-    }
-
-    // CHW → HWC float32
-    std::vector<cv::Mat> channels;
-    channels.reserve(3);
-    channels.emplace_back(h, w, CV_32F, const_cast<float*>(chw + 0 * h * w));
-    channels.emplace_back(h, w, CV_32F, const_cast<float*>(chw + 1 * h * w));
-    channels.emplace_back(h, w, CV_32F, const_cast<float*>(chw + 2 * h * w));
-    cv::merge(channels, hwc_f32);
-
-    // float32 → uint8
-    hwc_f32.convertTo(hwc_u8, CV_8UC3, 255.0);
-
-    auto frame = std::make_shared<cv::Mat>(hwc_u8.clone());
-
+// 推論出力をキューに積むだけ（変換処理はしない）
+inline void update_frame(const float* chw, int c, int h, int w) {
+    Frame f;
+    f.c = c; f.h = h; f.w = w;
+    f.chw.assign(chw, chw + c*h*w);
     {
         std::lock_guard lk(queue_mutex);
-        while (!frame_queue.empty()) frame_queue.pop(); // 最新だけ残す
-        frame_queue.push({frame});
+        while (!frame_queue.empty()) frame_queue.pop();
+        frame_queue.push(std::move(f));
     }
     queue_cv.notify_one();
 }
