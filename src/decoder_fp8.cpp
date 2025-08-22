@@ -109,19 +109,19 @@ void on_receive(const udp::endpoint& sender, const std::vector<uint8_t>& packet,
                 DECODER_IN_H,
                 DECODER_IN_W
             );
-            auto t1 = std::chrono::high_resolution_clock::now();
 
             shuffler.inverse(hwc, hwc_restored);
 
             std::vector<float> hwc_float32 = other_utils::fp8_to_float32(hwc_restored);
 
+            auto t1 = std::chrono::high_resolution_clock::now();
             // デコード
             decoder_model.run(hwc_float32, decoded);
             auto t2 = std::chrono::high_resolution_clock::now();
 
             // 表示
             //image_display::display_decoded_image_chw(decoded.data(), DECODER_OUT_C, DECODER_OUT_H, DECODER_OUT_W);
-            image_display::enqueue_frame_chw(decoded.data(), DECODER_OUT_C, DECODER_OUT_H, DECODER_OUT_W);
+            image_display::update_frame(decoded.data(), DECODER_OUT_C, DECODER_OUT_H, DECODER_OUT_W);
             auto t3 = std::chrono::high_resolution_clock::now();
 
             // 新フレーム用に初期化
