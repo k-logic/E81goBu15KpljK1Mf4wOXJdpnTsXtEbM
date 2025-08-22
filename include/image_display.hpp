@@ -95,7 +95,7 @@ inline void enqueue_frame_chw(const float* chw, int c, int h, int w) {
     // float32 → uint8
     hwc_f32.convertTo(hwc_u8, CV_8UC3, 255.0);
 
-    auto frame = std::make_shared<cv::Mat>(hwc_u8);
+    auto frame = std::make_shared<cv::Mat>(hwc_u8.clone());
 
     {
         std::lock_guard lk(queue_mutex);
