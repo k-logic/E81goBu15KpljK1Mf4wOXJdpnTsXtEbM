@@ -10,7 +10,7 @@ sudo apt install libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev
 ### encoder LiteRT
 ```
 g++ -std=c++23 -Ofast \
-src/encoder_fp8.cpp \
+src/encoder.cpp \
 -I./include \
 -I/usr/include/opencv4 \
 -L./lib \
@@ -27,7 +27,7 @@ src/encoder_fp8.cpp \
 ### decoder LiteRT
 ```
 g++ -std=c++23 -Ofast \
-src/decoder_fp8.cpp \
+src/decoder.cpp \
 -I./include \
 -I/usr/include/opencv4 \
 -L./lib \
@@ -44,7 +44,7 @@ src/decoder_fp8.cpp \
 ### encoder TensorRT
 ```
 g++ -std=c++23 -Ofast \
-src/encoder_fp8.cpp \
+src/encoder.cpp \
 -I./include \
 -I/usr/include/aarch64-linux-gnu \
 -I/usr/local/cuda/include \
@@ -66,7 +66,7 @@ src/encoder_fp8.cpp \
 ### decoder TensorRT
 ```
 g++ -std=c++23 -Ofast \
-src/decoder_fp8.cpp \
+src/decoder.cpp \
 -I./include \
 -I/usr/include/aarch64-linux-gnu \
 -I/usr/local/cuda/include \

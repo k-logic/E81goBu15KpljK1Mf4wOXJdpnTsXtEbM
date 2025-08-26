@@ -74,8 +74,8 @@ namespace config {
     constexpr int CHUNK_PIXEL   = 88;
     constexpr int CHUNK_PIXEL_H = 8;
     constexpr int CHUNK_PIXEL_W = 10;
-    constexpr int UDP_SO_SNDBUF = 128 * 1024;
-    constexpr int UDP_SO_RCVBUF = 128 * 1024;
+    constexpr int UDP_SO_SNDBUF = 256 * 1024;
+    constexpr int UDP_SO_RCVBUF = 256 * 1024;
 
     // ============================
     // その他
