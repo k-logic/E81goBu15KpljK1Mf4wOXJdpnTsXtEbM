@@ -55,9 +55,7 @@ int main() {
         UdpSender sender;
         sender.init_sync(io, CAMERA_HOST, CAMERA_PORT);
 
-        //CameraInput camera(INPUT_SOURCE, INPUT_W, INPUT_H, INPUT_FPS);
-        // CSI:UVC
-        CameraInputAppsink camera(CameraInputAppsink::SourceType::CSI, INPUT_SOURCE, INPUT_W, INPUT_H, INPUT_FPS);
+        CameraInputAppsink camera(CSI_GS_PIPELINE);
 
         std::unique_ptr<IModelExecutor> encoder_model;
 

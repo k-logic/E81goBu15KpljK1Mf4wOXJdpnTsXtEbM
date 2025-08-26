@@ -5,40 +5,80 @@
 #define RESOURCE_DIR "resource/"
 
 namespace config {
-    constexpr const char* ENCODER_PATH = MODEL_DIR "encoder13_fp16_SP.engine";
-    constexpr const char* DECODER_PATH = MODEL_DIR "decoder13_fp16_SP.engine";
-    //constexpr const char* CAMERA_HOST = "127.0.0.1";
-    //constexpr const char* CAMERA_HOST = "10.211.55.11";
-    //constexpr const char* CAMERA_HOST = "192.168.0.117";
-    //constexpr const char* CAMERA_HOST = "192.168.0.177";
+    // ============================
+    // モデルパス
+    // ============================
+    constexpr const char* ENCODER_PATH = MODEL_DIR "encoder_int8.engine";
+    constexpr const char* DECODER_PATH = MODEL_DIR "decoder_int8.engine";
+
+    // ============================
+    // 通信設定
+    // ============================
     constexpr const char* CAMERA_HOST = "192.168.0.170";
     constexpr uint16_t CAMERA_PORT     = 8004;
     constexpr size_t MAX_SAFE_UDP_SIZE = 1500;
 
+    // ============================
+    // 入力ソース情報
+    // ============================
     constexpr const char* INPUT_SOURCE = "/dev/video0";
     constexpr int INPUT_W = 1280;
     constexpr int INPUT_H = 720;
-    constexpr int INPUT_FPS = 30;
+    constexpr int INPUT_FPS = 60;
 
-    constexpr int ENCODER_IN_C = 3;      // エンコーダー入力のチャンネル
-    constexpr int ENCODER_IN_W = 1280;   // エンコーダー入力の幅
-    constexpr int ENCODER_IN_H = 720;    // エンコーダー入力の高さ
-    constexpr int ENCODER_OUT_C = 16;    // エンコーダー出力のチャンネル
-    constexpr int ENCODER_OUT_W = 80;    // エンコーダー出力の幅
-    constexpr int ENCODER_OUT_H = 45;    // エンコーダー出力の高さ
+    // ============================
+    // GStreamer パイプライン
+    // ============================
+    // UVC (USB, MJPEG)
+    inline std::string UVC_GS_PIPELINE =
+        "v4l2src device=" + std::string(INPUT_SOURCE) + " io-mode=2 ! "
+        "image/jpeg,framerate=" + std::to_string(INPUT_FPS) + "/1,"
+        "width=" + std::to_string(INPUT_W) + ",height=" + std::to_string(INPUT_H) + " ! "
+        "jpegdec ! "
+        "videoconvert ! "
+        "video/x-raw,format=BGR ! "
+        "appsink name=sink max-buffers=1 drop=true sync=false";
 
-    constexpr int DECODER_IN_C = 16;     // デコーダー入力のチャンネル
-    constexpr int DECODER_IN_W = 80;     // デコーダー入力の幅
-    constexpr int DECODER_IN_H = 45;     // デコーダー入力の高さ
-    constexpr int DECODER_OUT_C = 3;     // デコーダー出力のチャンネル
-    constexpr int DECODER_OUT_W = 1280;  // デコーダー出力の幅
-    constexpr int DECODER_OUT_H = 720;   // デコーダー出力の高さ
+    // CSI (Jetson カメラ, nvargus)
+    inline std::string CSI_GS_PIPELINE =
+        "nvarguscamerasrc ! "
+        "video/x-raw(memory:NVMM),width=" + std::to_string(INPUT_W) +
+        ",height=" + std::to_string(INPUT_H) +
+        ",framerate=" + std::to_string(INPUT_FPS) + "/1 ! "
+        "nvvidconv ! "
+        "video/x-raw,format=BGRx ! "
+        "videoconvert ! "
+        "video/x-raw,format=BGR ! "
+        "appsink name=sink max-buffers=1 drop=true sync=false";
 
-    constexpr int CHUNK_PIXEL = 88;
+    // ============================
+    // エンコーダ / デコーダ形状
+    // ============================
+    constexpr int ENCODER_IN_C = 3;      // 入力C
+    constexpr int ENCODER_IN_W = 1280;   // 入力W
+    constexpr int ENCODER_IN_H = 720;    // 入力H
+    constexpr int ENCODER_OUT_C = 16;    // 出力C
+    constexpr int ENCODER_OUT_W = 80;    // 出力W
+    constexpr int ENCODER_OUT_H = 45;    // 出力H
+
+    constexpr int DECODER_IN_C = 16;     // 入力C
+    constexpr int DECODER_IN_W = 80;     // 入力W
+    constexpr int DECODER_IN_H = 45;     // 入力H
+    constexpr int DECODER_OUT_C = 3;     // 出力C
+    constexpr int DECODER_OUT_W = 1280;  // 出力W
+    constexpr int DECODER_OUT_H = 720;   // 出力H
+
+    // ============================
+    // チャンク / UDP 設定
+    // ============================
+    constexpr int CHUNK_PIXEL   = 88;
     constexpr int CHUNK_PIXEL_H = 8;
     constexpr int CHUNK_PIXEL_W = 10;
     constexpr int UDP_SO_SNDBUF = 128 * 1024;
     constexpr int UDP_SO_RCVBUF = 128 * 1024;
-    
-    constexpr float FRAME_SKIP_THRESHOLD = 0.4f; 
+
+    // ============================
+    // その他
+    // ============================
+    constexpr float FRAME_SKIP_THRESHOLD = 0.4f;
 }
