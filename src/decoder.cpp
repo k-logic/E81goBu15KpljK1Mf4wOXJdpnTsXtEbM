@@ -23,7 +23,6 @@
 #include <chunker.hpp>
 #include <other_utils.hpp>
 #include <udp_server.hpp>
-#include <image_utils.hpp>
 #include <image_display.hpp>
 //#include <image_display_u8.hpp>
 //#include <image_display_gl.cu>
