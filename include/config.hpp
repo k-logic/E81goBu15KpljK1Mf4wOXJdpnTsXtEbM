@@ -14,8 +14,8 @@ namespace config {
     // ============================
     // 通信設定
     // ============================
-    constexpr const char* SERVER_HOST  = "192.168.0.170";
-    constexpr uint16_t SERVER_PORT     = 8004;
+    constexpr const char* SERVER_HOST  = "192.168.0.117";
+    constexpr uint16_t SERVER_PORT     = 6490;
     constexpr size_t MAX_SAFE_UDP_SIZE = 1500;
 
     // ============================
