@@ -42,6 +42,15 @@ public:
         running_ = false;
         if (socket_.is_open()) socket_.close();
     }
+    
+    // ハートビート用
+    void send(const std::vector<char>& data, const udp::endpoint& target) {
+        try {
+            socket_.send_to(asio::buffer(data), target);
+        } catch (const std::exception& e) {
+            std::cerr << fmt::format("UDP send error: {}\n", e.what());
+        }
+    }
 
 private:
     void configure_socket(udp::socket& sock) {

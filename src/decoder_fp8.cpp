@@ -219,6 +219,19 @@ int main() {
         decoder_model = std::make_unique<TensorRTExecutor>(stream);
         decoder_model->load(DECODER_PATH);
     #endif
+    
+    // 中継サーバーのアドレス
+    udp::endpoint relay(asio::ip::make_address("192.168.0.117"), 5000);
+
+    // HEARTBEAT送信用スレッド
+    std::thread([&] {
+        while (true) {
+            std::string msg = "HEARTBEAT";
+            std::vector<char> buf(msg.begin(), msg.end());
+            server.send(buf, relay);
+            std::this_thread::sleep_for(std::chrono::seconds(10)); // 2秒ごとに送信
+        }
+    }).detach();
 
     // 即時デコード型なのでスレッドは不要
     asio::co_spawn(io, run_server(server, *decoder_model), asio::detached);
