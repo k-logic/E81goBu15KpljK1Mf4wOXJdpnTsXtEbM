@@ -200,7 +200,7 @@ asio::awaitable<void> run_server(UdpServer& server, IModelExecutor& decoder_mode
 
 int main() {
     asio::io_context io;
-    UdpServer server(io, CAMERA_PORT);
+    UdpServer server(io, SERVER_PORT);
 
     std::unique_ptr<IModelExecutor> decoder_model;
     
