@@ -221,7 +221,7 @@ int main() {
     #endif
     
     // 中継サーバーのアドレス
-    udp::endpoint relay(asio::ip::make_address("192.168.0.117"), 5000);
+    udp::endpoint relay(asio::ip::make_address(SERVER_HOST), SERVER_PORT);
 
     // HEARTBEAT送信用スレッド
     std::thread([&] {
