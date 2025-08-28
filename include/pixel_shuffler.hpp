@@ -8,6 +8,7 @@
 
 class PixelShuffler {
 public:
+    /*
     // stride shuffle
     PixelShuffler(int h, int w, int c, int step = -1)
         : height(h), width(w), channels(c), num_pixels(h * w)
@@ -34,8 +35,8 @@ public:
             inverse_table[shuffle_table[i]] = i;
         }
     }
+    */
 
-    /*
     // ノーマルランダム
     PixelShuffler(int h, int w, int c, unsigned seed = 1234)
         : height(h), width(w), channels(c), num_pixels(h * w) 
@@ -51,7 +52,6 @@ public:
             inverse_table[shuffle_table[i]] = i;
         }
     }
-    */
 
     // Poisson分布(ブルーノイズ)
     /*
