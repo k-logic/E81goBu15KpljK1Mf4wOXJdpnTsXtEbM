@@ -20,9 +20,23 @@ namespace this_coro = asio::this_coro;
 class UdpSender {
 public:
     // 同期初期化
+    /*
     void init_sync(asio::io_context& io, const std::string& ip, uint16_t port) {
         socket_.emplace(io);
         endpoint_ = udp::endpoint(asio::ip::make_address(ip), port);
+        socket_->open(udp::v4());
+
+        configure_socket();
+    }
+    */
+
+    void init_sync(asio::io_context& io, const std::string& host, uint16_t port) {
+        socket_.emplace(io);
+
+        udp::resolver resolver(io);
+        auto results = resolver.resolve(udp::v4(), host, std::to_string(port));
+        endpoint_ = *results.begin();
+
         socket_->open(udp::v4());
 
         configure_socket();
