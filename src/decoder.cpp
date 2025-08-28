@@ -44,16 +44,34 @@ using namespace config;
 // 1フレーム分だけ保持するバッファ構造
 struct FrameBuffer {
     std::vector<std::vector<uint8_t>> chunks; // 各チャンクのデータ
-    std::vector<bool> received_flags;       // 到着フラグ
+    std::vector<bool> received_flags;         // 到着フラグ
     int received_count = 0;
     int chunk_total = 0;
+
+    void init(int total_chunks) {
+        chunk_total = total_chunks;
+        received_count = 0;
+
+        if (chunks.size() != static_cast<size_t>(chunk_total)) {
+            // 初回またはサイズが変わった時だけ確保
+            chunks.resize(chunk_total, std::vector<uint8_t>(CHUNK_PIXEL * DECODER_IN_C));
+        }
+        for (auto& c : chunks) {
+            std::fill(c.begin(), c.end(), 0);  // 中身だけ初期化（再利用）
+        }
+
+        if (received_flags.size() != static_cast<size_t>(chunk_total)) {
+            received_flags.resize(chunk_total);
+        }
+        std::fill(received_flags.begin(), received_flags.end(), false);
+    }
 };
 
 PixelShuffler shuffler(DECODER_IN_H, DECODER_IN_W, DECODER_IN_C);
 std::vector<uint8_t> hwc_restored;
 
 static FrameBuffer current_frame;
-static uint32_t current_frame_id = 0;
+static uint32_t current_frame_id = UINT32_MAX;
 
 // グローバルまたはmainの外で固定バッファを持つ
 static std::vector<uint8_t> hwc(DECODER_IN_C * DECODER_IN_H * DECODER_IN_W);
@@ -137,10 +155,7 @@ void on_receive(const udp::endpoint& sender, const std::vector<uint8_t>& packet,
 
             // 新フレーム用に初期化
             current_frame_id = parsed.header.frame_id;
-            current_frame.chunk_total = parsed.header.chunk_total;
-            current_frame.received_count = 0;
-            current_frame.chunks.assign(current_frame.chunk_total, std::vector<uint8_t>(CHUNK_PIXEL * DECODER_IN_C, 0));
-            current_frame.received_flags.assign(current_frame.chunk_total, false);
+            current_frame.init(parsed.header.chunk_total);  
 
              // ===== 各区間の時間（ms）を計算 =====
             auto ms_chunk = std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t_prev).count();
@@ -185,7 +200,7 @@ asio::awaitable<void> run_server(UdpServer& server, IModelExecutor& decoder_mode
 
 int main() {
     asio::io_context io;
-    UdpServer server(io, CAMERA_PORT);
+    UdpServer server(io, SERVER_PORT);
 
     std::unique_ptr<IModelExecutor> decoder_model;
     
@@ -204,6 +219,19 @@ int main() {
         decoder_model = std::make_unique<TensorRTExecutor>(stream);
         decoder_model->load(DECODER_PATH);
     #endif
+    
+    // 中継サーバーのアドレス
+    udp::endpoint relay(asio::ip::make_address("192.168.0.117"), 5000);
+
+    // HEARTBEAT送信用スレッド
+    std::thread([&] {
+        while (true) {
+            std::string msg = "HEARTBEAT";
+            std::vector<char> buf(msg.begin(), msg.end());
+            server.send(buf, relay);
+            std::this_thread::sleep_for(std::chrono::seconds(10)); // 2秒ごとに送信
+        }
+    }).detach();
 
     // 即時デコード型なのでスレッドは不要
     asio::co_spawn(io, run_server(server, *decoder_model), asio::detached);

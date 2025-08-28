@@ -53,7 +53,7 @@ int main() {
     try {
         asio::io_context io;
         UdpSender sender;
-        sender.init_sync(io, CAMERA_HOST, CAMERA_PORT);
+        sender.init_sync(io, SERVER_HOST, SERVER_PORT);
 
         CameraInputAppsink camera(CSI_GS_PIPELINE);
 
