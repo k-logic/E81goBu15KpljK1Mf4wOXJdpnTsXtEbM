@@ -198,6 +198,20 @@ asio::awaitable<void> run_server(UdpServer& server, IModelExecutor& decoder_mode
     });
 }
 
+asio::awaitable<void> heartbeat_loop(UdpServer& server) {
+    auto ex = co_await this_coro::executor;
+    asio::steady_timer timer(ex);
+
+    while (true) {
+        std::string msg = "HEARTBEAT";
+        std::vector<char> buf(msg.begin(), msg.end());
+        server.send(buf, SERVER_HOST, SERVER_PORT);
+
+        timer.expires_after(std::chrono::seconds(10));
+        co_await timer.async_wait(use_awaitable);
+    }
+}
+
 int main() {
     asio::io_context io;
     UdpServer server(io, SERVER_PORT);
@@ -219,22 +233,11 @@ int main() {
         decoder_model = std::make_unique<TensorRTExecutor>(stream);
         decoder_model->load(DECODER_PATH);
     #endif
-    
-    // 中継サーバーのアドレス
-    udp::endpoint relay(asio::ip::make_address(SERVER_HOST), SERVER_PORT);
-
-    // HEARTBEAT送信用スレッド
-    std::thread([&] {
-        while (true) {
-            std::string msg = "HEARTBEAT";
-            std::vector<char> buf(msg.begin(), msg.end());
-            server.send(buf, relay);
-            std::this_thread::sleep_for(std::chrono::seconds(10)); // 2秒ごとに送信
-        }
-    }).detach();
 
     // 即時デコード型なのでスレッドは不要
     asio::co_spawn(io, run_server(server, *decoder_model), asio::detached);
+
+    asio::co_spawn(io, heartbeat_loop(server), asio::detached);
     io.run();
     image_display::stop_display_thread();
 

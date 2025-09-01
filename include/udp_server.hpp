@@ -23,7 +23,8 @@ public:
     UdpServer(asio::io_context& io, uint16_t port)
         : executor_(io.get_executor()),
           socket_(executor_, udp::endpoint(udp::v4(), port)),
-          running_(true)
+          running_(true),
+          resolver_(io)
     {
         configure_socket(socket_);
     }
@@ -44,9 +45,13 @@ public:
     }
     
     // ハートビート用
-    void send(const std::vector<char>& data, const udp::endpoint& target) {
+    void send(const std::vector<char>& data, const std::string& host, uint16_t port) {
         try {
-            socket_.send_to(asio::buffer(data), target);
+            auto results = resolver_.resolve(udp::v4(), host, std::to_string(port));
+            for (auto& entry : results) {
+                socket_.send_to(asio::buffer(data), entry.endpoint());
+                return;
+            }
         } catch (const std::exception& e) {
             std::cerr << fmt::format("UDP send error: {}\n", e.what());
         }
@@ -83,4 +88,5 @@ private:
     asio::any_io_executor executor_;
     udp::socket socket_;
     std::atomic<bool> running_;
+    udp::resolver resolver_;
 };
