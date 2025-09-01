@@ -55,6 +55,8 @@ int main() {
         UdpSender sender;
         sender.init_sync(io, SERVER_HOST, SERVER_PORT);
 
+        // UVC_GS_PIPELINE
+        // CSI_GS_PIPELINE
         CameraInputAppsink camera(CSI_GS_PIPELINE);
 
         std::unique_ptr<IModelExecutor> encoder_model;
